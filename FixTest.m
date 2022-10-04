@@ -1,9 +1,16 @@
-function FixTest(Trial)
-numTrial=Trial;
+function FixTest(sub,run)
 try
-    %setupDIO;
+    % Necessary libaries and set save location, skip synctest
     addpath('E:\work\git\cclab-matlab-tools');
-    path = 'E:\EyelinkData\'; % where to keep the edf files
+    path = strcat('E:\EyelinkData\',sub,'\',num2str(run)); % where to keep the edf files
+    % check if folder exists, if not, create it
+    if isfolder(path)
+        disp('Folder exisis')
+    elseif not (isfolder(path))
+        mkdir(path)
+        disp('Folder created')
+        disp(path)
+    end
     Screen('Preference', 'SkipSyncTests', 1);
 
 
@@ -14,13 +21,13 @@ try
     ppd=2*obs_dist*ppcm*tan(pi/360);
 
     fp_color=[0 0 255]; % color of the fixation point
-    fpr=round(ppd*0.5); %radius of fixation point
+    fpr=round(ppd*1.5); %radius of fixation point
     v_x_fp=[0, round(-8*ppd), round(8*ppd)]; % position of the fixation points
-    v_y_fp=[0, 0, 0];
+    v_y_fp=[0, round(-8*ppd), round(8*ppd)];
     window_fix=round(6*ppd); % the size of the window for fixations
 
-    t_waitforfixation=2.0; % Time window since fixation on
-    t_fixation=1;% hold fixation (s)
+    t_waitforfixation=2.0; % wait time for object to fix when fp is first presented
+    t_fixation=1;% time required to hold fixation (s)
     t_trialend=1;  % Inter trial interval
     reward = 500; % reward time (ms)
     t1=0.2; % image loop time
@@ -44,7 +51,7 @@ try
     coolkey=KbName('return');
 
     %% STEP 0: INITIALIZE pump reward system
-    [success] = cclabInitReward("j")
+    [success] = cclabInitReward("j");
 
     %% STEP 1: INITIALIZE EYELINK CONNECTION; OPEN EDF FILE; GET EYELINK TRACKER VERSION
 
@@ -119,41 +126,21 @@ try
     if isempty(screenNumber)
         screenNumber = max(Screen('Screens')); % Use default screen if none specified
     end
-
+    % Open a grey background window
     [window, rect] = Screen('OpenWindow', screenNumber, [128 128 128]); % Open graphics window
+    % Define center coord
     [center(1), center(2)] = RectCenter(rect);
+    % Show on screen
     Screen('Flip', window);
     % Return width and height of the graphics window/screen in pixels
     [width, height] = Screen('WindowSize', window);
-    FixLoc=[center(1),center(2);center(1),center(2)+height/4;center(1),center(2)-height/4;
-        center(1)+width/4,center(2);center(1)+width/4,center(2)+height/4;center(1)+width/4,center(2)-height/4;
-        center(1)-width/4,center(2);center(1)-width/4,center(2)+height/4;center(1)-width/4,center(2)-height/4];
-
-
-    %     % Find the color values which correspond to white and black.  Though on OS
-    %     % X we currently only support true color and thus, for scalar color
-    %     % arguments,
-    %     % black is always 0 and white 255, this rule is not true on other platforms will
-    %     % not remain true on OS X after we add other color depth modes.
-    %     white=WhiteIndex(screenNumber);
-    %     black=BlackIndex(screenNumber);
-    %     gray=(white+black)/2;
-    %     if round(gray)==white
-    %         gray=black;
-    %     end
-    %     inc=white-gray;
 
 
 
-    %     % Open a double buffered fullscreen window and draw a gray background
-    %     % to front and back buffers:
-    %     [w, rect]=Screen('OpenWindow',screenNumber, 0,[],[],2,[],4);
-    %     [center(1), center(2)] = RectCenter(rect);
-    %     [width, height]=Screen('WindowSize', screenNumber);
-    %
-    %
-    %     % do eyelink stuff
-    %     el=EyelinkInitDefaults(w);
+
+
+
+
 
     %% STEP 3: SELECT AVAILABLE SAMPLE/EVENT DATA
     % See EyeLinkProgrammers Guide manual > Useful EyeLink Commands > File Data Control & Link Data Control
@@ -212,249 +199,203 @@ try
     EyelinkDoTrackerSetup(el);
 
 
-
+    % Wait for kb input
     KbWait;
 
+    % Fill the screen and get flip interval
     Screen('Rect',window);
     slack=Screen('GetFlipInterval',window)/2;
     RandStream.setGlobalStream(RandStream('mt19937ar','seed',sum(100*clock)));
     % background on
     Screen('FillRect',window, el.backgroundcolour);
+    % start of the trial
     t_start_trial=Screen('Flip',window);
 
-
+    % init pause and loop
     pause=0;
     i=1;
 
-    % eye_used = el.LEFT_EYE;
+    % main loop, change condition to have limited numbers of trial,
+    % otherwise run forever
     while i>0
 
-            Eyelink( 'Message', 'Trialstart');
-            %Start recording
-            Eyelink('StartRecording');
-            Eyelink('Command', 'record_status_message ''TRIAL %d''', i);
+        % Eyelink message, start of trial
+        Eyelink( 'Message', 'Trialstart');
+        %Start recording
+        Eyelink('StartRecording');
+        % Eyelink message, record trial number
+        Eyelink('Command', 'record_status_message ''TRIAL %d''', i);
 
 
-            % change here to add more fixation poisitions
-            x_fp=v_x_fp(1);
-            y_fp=v_y_fp(1);
+        % Random draw x and y of fp from the pool above
+        x_fp=v_x_fp(randperm(length(v_x_fp),1));
+        y_fp=v_y_fp(randperm(length(v_x_fp),1));
 
-                temp=randi([1 numTrial],1,1);
+        % Draw box of accepted fix on eyelink machine
+        Eyelink('command','clear_screen %d', 0);
+        Eyelink('command','draw_box %d %d %d %d 15', round(center(1)+x_fp-(window_fix/2)), round(center(2)-y_fp-(window_fix/2)), round(center(1)+x_fp+(window_fix/2)),round(center(2)-y_fp+(window_fix/2)));
 
-            Eyelink('command','clear_screen %d', 0);
-                Eyelink('command','draw_box %d %d %d %d 15', round(FixLoc(temp,1)+x_fp-(window_fix/2)), round(FixLoc(temp,2)-y_fp-(window_fix/2)), round(FixLoc(temp,1)+x_fp+(window_fix/2)),round(FixLoc(temp,2)-y_fp+(window_fix/2)));
-
-
-            eye_used = el.LEFT_EYE;
-
-
-            %START WAIT FOR FIXATION
-            t_start=GetSecs;
+        % Left eye as default
+        eye_used = el.LEFT_EYE;
 
 
-            Eyelink('Message', 'Waitfix');
-            fix=0; % flag for fixation
-            while (fix==0 && ((GetSecs)-t_start)<t_waitforfixation)
+        %START WAIT FOR FIXATION, get current time, start counting down
+        t_start=GetSecs;
 
-                % Check recording status, stop display if error
-                error=Eyelink('CheckRecording');
-                if(error~=0)
-                    break;
-                end
+        % Eyelink message, wait subject to fix
+        Eyelink('Message', 'Waitfix');
+        fix=0; % flag for fixation
 
-                % draw background
-                Screen('FillRect',window, el.backgroundcolour);
-                Screen('DrawingFinished',window);
-                t_start_trial=Screen('Flip',window, t_start_trial + t1 - slack);
+        % Not fix and within waiting window
+        while (fix==0 && ((GetSecs)-t_start)<t_waitforfixation)
 
-                % draw fixation point
-                Screen('FillRect',window, el.backgroundcolour);
-                Screen('FillOval',window,fp_color, [FixLoc(temp,1)-fpr+x_fp, FixLoc(temp,2)-fpr-y_fp, FixLoc(temp,1)+fpr+x_fp, FixLoc(temp,2)+fpr-y_fp]);
-                Screen('DrawingFinished',window);
-                t_start_trial=Screen('Flip',window, t_start_trial + t1 - slack);
-
-                % get eye position
-                evt=Eyelink('NewestFloatSample');
-                x_eye=evt.gx(eye_used+1);
-                y_eye=evt.gy(eye_used+1);
-
-                % check whether eye is in the fixation window
-                if ((x_eye >= (FixLoc(temp,1)+x_fp-(window_fix/2)))&&(x_eye <= (FixLoc(temp,1)+x_fp+(window_fix/2)))&&(y_eye >= (FixLoc(temp,2)-y_fp-(window_fix/2)))&&(y_eye <= (FixLoc(temp,2)-y_fp+(window_fix/2))))
-                    fix=1;
-                end
-
-                [keyIsDown, secs, keyCode]=KbCheck;
-                if ( keyCode(left)==1 | keyCode(right)==1 )
-                    if keyCode(left)==1
-                        x_eye=1000;
-                        y_eye=1000;
-                    end
-                    if keyCode(right)==1
-                        x_eye=center(1)+x_fp;
-                        y_eye=center(2)-y_fp;
-                    end
-                end
-
-                if ( keyCode(up)==1 | keyCode(down)==1 )
-                    if keyCode(up)==1
-                        pause=1;
-                    end
-                    if keyCode(down)==1
-                        pause=0;
-                    end
-                end
-                if (keyIsDown==1 && keyCode(space))
-                    disp('reward 5')
-                    cclabReward(reward, 1, IRI)
-                end
+            % Check recording status, stop display if error
+            error=Eyelink('CheckRecording');
+            if(error~=0)
+                break;
             end
-            %END WAIT FOR FIXATION
 
-
-
-            %START FIXATION
-            t_start=GetSecs;
-
-            Eyelink('Message', 'FixationIn');
-
-            while (fix==1 && ((GetSecs)-t_start)<t_fixation)
-
-                %Check recording status, stop display if error
-                error=Eyelink('CheckRecording');
-                if(error~=0)
-                    break;
-                end
-
-                evt=Eyelink('NewestFloatSample');
-                x_eye=evt.gx(eye_used+1);
-                y_eye=evt.gy(eye_used+1);
-
-                if not((x_eye >= (FixLoc(temp,1)+x_fp-(window_fix/2)))&&(x_eye <= (FixLoc(temp,1)+x_fp+(window_fix/2)))&&(y_eye >= (FixLoc(temp,2)-y_fp-(window_fix/2)))&&(y_eye <= (FixLoc(temp,2)-y_fp+(window_fix/2))))
-                    fix=0;
-                end
-
-                Screen('FillRect',window, el.backgroundcolour);
-                Screen('FillOval',window,fp_color, [FixLoc(temp,1)-fpr+x_fp, FixLoc(temp,2)-fpr-y_fp, FixLoc(temp,1)+fpr+x_fp, FixLoc(temp,2)+fpr-y_fp]);
-                Screen('DrawingFinished',window);
-                Eyelink('command','clear_screen %d', 0);
-                Eyelink('command','draw_box %d %d %d %d 15', round(FixLoc(temp,1)+x_fp-(window_fix/2)), round(FixLoc(temp,2)-y_fp-(window_fix/2)), round(FixLoc(temp,1)+x_fp+(window_fix/2)),round(FixLoc(temp,2)-y_fp+(window_fix/2)));
-
-                t_start_trial=Screen('Flip',window, t_start_trial + t1 - slack);
-
-                [keyIsDown, secs, keyCode]=KbCheck;
-                if ( keyCode(left)==1 | keyCode(right)==1 )
-                    if keyCode(left)==1
-                        x_eye=1000;
-                        y_eye=1000;
-                    end
-                    if keyCode(right)==1
-                        x_eye=center(1)+x_fp;
-                        y_eye=center(2)-y_fp;
-                    end
-                end
-
-
-                if ( keyCode(up)==1 | keyCode(down)==1 )
-                    if keyCode(up)==1
-                        pause=1;
-                    end
-                    if keyCode(down)==1
-                        pause=0;
-                    end
-                end
-
-                if (keyIsDown==1 && keyCode(space))
-                    disp('reward 1')
-                    cclabReward(reward, 1, IRI)
-                end
-            end
-            %END FIXATION
-
-            %Get Reward
-            if(fix==1)
-                t_start=GetSecs;
-                disp(num2str(t_start))
-                fprintf('reward 2\n');
-                cclabReward(reward, 1, IRI)
-                Eyelink( 'Message', 'Reward %d', reward);
-            end
-            fix=0;
-
-            %START TRIAL END
+            % draw background, update time
             Screen('FillRect',window, el.backgroundcolour);
             Screen('DrawingFinished',window);
             t_start_trial=Screen('Flip',window, t_start_trial + t1 - slack);
-            t_start=GetSecs;
 
+            % draw fixation point, update time
+            Screen('FillRect',window, el.backgroundcolour);
+            Screen('FillOval',window,fp_color, [center(1)-fpr+x_fp, center(2)-fpr-y_fp, center(1)+fpr+x_fp, center(2)+fpr-y_fp],5);
+            Screen('DrawingFinished',window);
+            t_start_trial=Screen('Flip',window, t_start_trial + t1 - slack);
 
-            % Inter trial interval
-            while ((GetSecs)-t_start)<t_trialend,
+            % get eye position
+            evt=Eyelink('NewestFloatSample');
+            x_eye=evt.gx(eye_used+1);
+            y_eye=evt.gy(eye_used+1);
 
-                %Check recording status, stop display if error
-                error=Eyelink('CheckRecording');
-                if(error~=0)
-                    break;
+            % check whether eye is in the fixation window, if yes, set fix
+            % flag to 1
+            if ((x_eye >= (center(1)+x_fp-(window_fix/2)))&&(x_eye <= (center(1)+x_fp+(window_fix/2)))&&(y_eye >= (center(2)-y_fp-(window_fix/2)))&&(y_eye <= (center(2)-y_fp+(window_fix/2))))
+                fix=1;
+            end
+
+            % check key press, left right to change eye position mannually,
+            % up down to pause and unpause, space for manual reward
+            [keyIsDown, secs, keyCode]=KbCheck;
+            if ( keyCode(left)==1 | keyCode(right)==1 )
+                if keyCode(left)==1
+                    x_eye=1000;
+                    y_eye=1000;
                 end
-
-                [keyIsDown, secs, keyCode]=KbCheck;
-
-                if ( keyCode(up)==1 | keyCode(down)==1 )
-                    if keyCode(up)==1
-                        pause=1;
-                    end
-                    if keyCode(down)==1
-                        pause=0;
-                    end
-                end
-
-                if (keyIsDown==1 && keyCode(space))
-                    disp('reward 3')
-                    cclabReward(reward, 1, IRI)
-                end
-
-                if (keyIsDown==1 && keyCode(esc))
-                    % Abort:
-                    ShowCursor;
-                    Screen('CloseAll');
-                    ListenChar(1);
-                    fprintf('Aborted.\n');
-                    Eyelink('StopRecording');
-                    Eyelink('CloseFile');
-                    % download data file
-                    cd(path)
-                    try
-                        fprintf('Receiving data file ''%s''\n', edfFile );
-                        status=Eyelink('ReceiveFile');
-                        if status > 0
-                            fprintf('ReceiveFile status %d\n', status);
-                        end
-                        if 2==exist(edfFile, 'file')
-                            fprintf('Data file ''%s'' can be found in ''%s''\n', edfFile, pwd );
-                        end
-                    catch
-                        fprintf('Problem receiving data file ''%s''\n', edfFile );
-                    end
-                    Eyelink('ShutDown');
-                    return ;
+                if keyCode(right)==1
+                    x_eye=center(1)+x_fp;
+                    y_eye=center(2)-y_fp;
                 end
             end
-            %STOP TRIAL END
 
-            Eyelink('Message', 'Trialend');
-        
-        %Stop recording
-        Eyelink('StopRecording');
-
-
-
-        %START PAUSE
-
-        if (pause==1)
-            Screen('FillRect',window, el.msgfontcolour);
-            Screen('DrawingFinished',window);
-            Screen('Flip',window);
+            if ( keyCode(up)==1 | keyCode(down)==1 )
+                if keyCode(up)==1
+                    pause=1;
+                end
+                if keyCode(down)==1
+                    pause=0;
+                end
+            end
+            if (keyIsDown==1 && keyCode(space))
+                disp('reward 5')
+                cclabReward(reward, 1, IRI)
+            end
         end
-        while (pause>0)
+        %END WAIT FOR FIXATION
+
+
+
+        %START keep FIXATION, update wait start time
+        t_start=GetSecs;
+
+        % Eyelink message, subject is fixing and is asked to keep fixing
+        Eyelink('Message', 'FixationIn');
+        % When subject is fixing and within hold fixation time window
+        while (fix==1 && ((GetSecs)-t_start)<t_fixation)
+
+            %Check recording status, stop display if error
+            error=Eyelink('CheckRecording');
+            if(error~=0)
+                break;
+            end
+            % check eye position
+            evt=Eyelink('NewestFloatSample');
+            x_eye=evt.gx(eye_used+1);
+            y_eye=evt.gy(eye_used+1);
+            % if eye position is not in the box, flag fix as 0
+            if not((x_eye >= (center(1)+x_fp-(window_fix/2)))&&(x_eye <= (center(1)+x_fp+(window_fix/2)))&&(y_eye >= (center(2)-y_fp-(window_fix/2)))&&(y_eye <= (center(2)-y_fp+(window_fix/2))))
+                fix=0;
+            end
+
+            % Draw the dot on screen and box on eyelink machine
+            Screen('FillRect',window, el.backgroundcolour);
+            Screen('FillOval',window,fp_color, [center(1)-fpr+x_fp, center(2)-fpr-y_fp, center(1)+fpr+x_fp, center(2)+fpr-y_fp]);
+            Screen('DrawingFinished',window);
+            Eyelink('command','clear_screen %d', 0);
+            Eyelink('command','draw_box %d %d %d %d 15', round(center(1)+x_fp-(window_fix/2)), round(center(2)-y_fp-(window_fix/2)), round(center(1)+x_fp+(window_fix/2)),round(center(2)-y_fp+(window_fix/2)));
+            % update wait start time
+            t_start_trial=Screen('Flip',window, t_start_trial + t1 - slack);
+            % check keys
+            [keyIsDown, secs, keyCode]=KbCheck;
+            if ( keyCode(left)==1 | keyCode(right)==1 )
+                if keyCode(left)==1
+                    x_eye=1000;
+                    y_eye=1000;
+                end
+                if keyCode(right)==1
+                    x_eye=center(1)+x_fp;
+                    y_eye=center(2)-y_fp;
+                end
+            end
+
+
+            if ( keyCode(up)==1 | keyCode(down)==1 )
+                if keyCode(up)==1
+                    pause=1;
+                end
+                if keyCode(down)==1
+                    pause=0;
+                end
+            end
+
+            if (keyIsDown==1 && keyCode(space))
+                disp('reward 1')
+                cclabReward(reward, 1, IRI)
+            end
+        end
+        %END FIXATION
+        % Check if subject keep fixation and hold it for the desired time,
+        % if yes give reward, if not, jump to next loop without reward
+        %Get Reward
+        if(fix==1)
+            % update time
+            t_start=GetSecs;
+            % display successful trial time
+            disp(num2str(t_start))
+            % print to screen and give reward
+            fprintf('reward 2\n');
+            cclabReward(reward, 1, IRI)
+            % Eyelink message, reward and reward amount
+            Eyelink( 'Message', 'Reward %d', reward);
+        end
+
+
+        %START TRIAL END
+        % Fill background grey
+        Screen('FillRect',window, el.backgroundcolour);
+        Screen('DrawingFinished',window);
+        % update time
+        t_start_trial=Screen('Flip',window, t_start_trial + t1 - slack);
+        t_start=GetSecs;
+
+
+        % Inter trial interval
+        % Check for keys press and esc to quit the process
+        while ((GetSecs)-t_start)<t_trialend
+
 
             %Check recording status, stop display if error
             error=Eyelink('CheckRecording');
@@ -473,11 +414,79 @@ try
                 end
             end
 
+            if (keyIsDown==1 && keyCode(space))
+                disp('reward 3')
+                cclabReward(reward, 1, IRI)
+            end
+
+            if (keyIsDown==1 && keyCode(esc))
+                % Abort, close all connections and return mouse and
+                % keyboard to normal
+                ShowCursor;
+                Screen('CloseAll');
+                ListenChar(1);
+                fprintf('Aborted.\n');
+                Eyelink('StopRecording');
+                Eyelink('CloseFile');
+                % download data file to desired path
+                cd(path)
+                try
+                    fprintf('Receiving data file ''%s''\n', edfFile );
+                    status=Eyelink('ReceiveFile');
+                    if status > 0
+                        fprintf('ReceiveFile status %d\n', status);
+                    end
+                    if 2==exist(edfFile, 'file')
+                        fprintf('Data file ''%s'' can be found in ''%s''\n', edfFile, pwd );
+                    end
+                catch
+                    fprintf('Problem receiving data file ''%s''\n', edfFile );
+                end
+                Eyelink('ShutDown');
+                return ;
+            end
+        end
+        %STOP TRIAL END
+        % Eyelink message, end of trial
+        Eyelink('Message', 'Trialend');
+
+        %Stop recording
+        Eyelink('StopRecording');
+
+
+
+        %START PAUSE
+        % if pause, give blank screen
+        if (pause==1)
+            Screen('FillRect',window, el.msgfontcolour);
+            Screen('DrawingFinished',window);
+            Screen('Flip',window);
+        end
+        % check keys for unpause and pause and reward and quit
+        while (pause>0)
+
+            %Check recording status, stop display if error
+            error=Eyelink('CheckRecording');
+            if(error~=0)
+                break;
+            end
+
+            [keyIsDown, ~, keyCode]=KbCheck;
+
+            if ( keyCode(up)==1 | keyCode(down)==1 )
+                if keyCode(up)==1
+                    pause=1;
+                end
+                if keyCode(down)==1
+                    pause=0;
+                end
+            end
+
 
             if (keyIsDown==1 && keyCode(space))
                 disp('reward 4')
                 cclabReward(reward, 1, IRI)
-            end;
+            end
 
 
             if (keyIsDown==1 && keyCode(esc))
@@ -503,16 +512,16 @@ try
                 end
                 Eyelink('ShutDown');
                 return ;
-            end;
+            end
         end
         %END PAUSE
-
+        % record number of trials
         i=i+1;
 
     end
 
 
-
+    % End of loop, close file
     Eyelink('CloseFile');
     % download data file
     cd(path)
