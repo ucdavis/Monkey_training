@@ -1,8 +1,9 @@
-sub='test';
-run=1;
+function FixTestV2(sub,run)
+
 try
-    % Necessary libaries and set save location, skip synctest
+    % Add necessary libaries
     addpath('E:\work\git\cclab-matlab-tools');
+    % Set pathway
     path = strcat('E:\EyelinkData\',sub,'\',num2str(run)); % where to keep the edf files
     % check if foloooder exists, if not, create it
     if isfolder(path)
@@ -12,25 +13,25 @@ try
         disp('Folder created')
         disp(path)
     end
+    %skip synctest
     Screen('Preference', 'SkipSyncTests', 1);
 
 
     % set parameters
-    numpixel=1048*1048; %in pixel
-    screenlen=100; %in cm
-    screenheight=100; %in cm
-    ppcm=numpixel/screenheight/screenlen; %Number of pixels per centimeter 40
+    numpixel=1048*1048; %total number of pixels of the screen (in pixel)
+    screenlen=100; %real length of the screen (in cm)
+    screenheight=100; %real height of the screen (in cm)
+    ppcm=numpixel/screenheight/screenlen; %Number of pixels per centimeter default is 40
     obs_dist = 30;   % viewing distance (cm)
-    %ppd=50; %Number of pixels per degree of visual angle
-    ppd=2*obs_dist*ppcm*tan(pi/360);
+    ppd=2*obs_dist*ppcm*tan(pi/360);   %Number of pixels per degree of visual angle
 
     fp_color=[0 0 255]; % color of the fixation point
     fpr=round(ppd*1.5); %radius of fixation point
-    v_x_fp=[0, round(-8*ppd), round(8*ppd)]; % position of the fixation points
-    v_y_fp=[0, round(-8*ppd), round(8*ppd)];
-    window_fix=round(6*ppd); % the size of the window for fixations
+    v_x_fp=[0, round(-8*ppd), round(8*ppd)]; % x position of the fixation points
+    v_y_fp=[0, round(-8*ppd), round(8*ppd)]; % y position of the fixation points
+    window_fix=round(6*ppd); % the size of the accepted window for fixation point
 
-    t_waitforfixation=2.0; % wait time for object to fix when fp is first presented
+    t_waitforfixation=2.0; % wait time for subjuct to fix when fp is first presented
     t_fixation=1;% time required to hold fixation (s)
     t_trialend=1;  % Inter trial interval
     reward = 500; % reward time (ms)
@@ -55,7 +56,7 @@ try
     coolkey=KbName('return');
 
     %% STEP 0: INITIALIZE pump reward system
-    [succesc o s] = cclabInitReward("j");
+    [success] = cclabInitReward("j");
 
     %% STEP 1: INITIALIZE EYELINK CONNECTION; OPEN EDF FILE; GET EYELINK TRACKER VERSION
 
@@ -215,15 +216,16 @@ try
     % start of the trial
     t_start_trial=Screen('Flip',window);
 
-    % init pause and loop
-    pause=0;
+    % init  loop
     i=1;
-
+        % Define first state
     stage='trial_new_start';
     while i>0
         switch(stage)
             case 'trial_new_start'
-                % Random draw x and y of fp from the pool above
+                % Random draw x and y of fp from the pool above, start a
+                % new fixation point when subject refuses to look at the
+                % fixation point 
                 x_fp=v_x_fp(randperm(length(v_x_fp),1));
                 y_fp=v_y_fp(randperm(length(v_x_fp),1));
                 stage='trial_start';
@@ -235,15 +237,16 @@ try
                 Eyelink('StartRecording');
                 % Eyelink message, record trial number
                 Eyelink('Command', 'record_status_message ''TRIAL %d''', i);
+                % Matlab message, display trial number
                 disp('trial_start')
 
 
 
 
-                % Draw box of accepted fix on eyelink machine
+                %Clear screen on eyelink machine
                 Eyelink('command','clear_screen %d', 0);
 
-                % Left eye as default
+                % Set used eye to Left eye as default
                 eye_used = el.LEFT_EYE;
 
 
@@ -252,9 +255,12 @@ try
 
                 % Eyelink message, wait subject to fix
                 Eyelink('Message', 'Waitfix');
+                % check if key is pressed in this stage
                 checkkeys;
+                % Move to stage, put on fixation point on the screen
                 stage='put_on_fp';
             case 'put_on_fp'
+                % Matlab message, display put_on_fp
                 disp('put_on_fp')
 
                 % Check recording status, stop display if error
@@ -273,14 +279,17 @@ try
                 Screen('FillOval',window,fp_color, [center(1)-fpr+x_fp, center(2)-fpr-y_fp, center(1)+fpr+x_fp, center(2)+fpr-y_fp],5);
                 Screen('DrawingFinished',window);
                 t_start_trial=Screen('Flip',window, t_start_trial + t1 - slack);
+                % draw box on eyelink machine, representing window of
+                % accepted eye position
                 Eyelink('command','clear_screen %d', 0);
                 Eyelink('command','draw_box %d %d %d %d 15', round(center(1)+x_fp-(window_fix/2)), round(center(2)-y_fp-(window_fix/2)), round(center(1)+x_fp+(window_fix/2)),round(center(2)-y_fp+(window_fix/2)));
-
+% check if key is pressed
                 checkkeys;
-
+% update stage
                 stage='wait_for_fix';
 
             case 'wait_for_fix'
+                % Matlab message
                 disp('wait_for_fix')
 
                 % get eye position
@@ -288,17 +297,21 @@ try
                 x_eye=evt.gx(eye_used+1);
                 y_eye=evt.gy(eye_used+1);
 
-                % check whether eye is in the fixation window, if yes, set fix
-                % flag to 1
+                % check whether eye is in the fixation window, if yes, set
+                % stage to next wait for hold stage and update time; 
+                % if not, return to the trial start stage with previous
+                % fixation point position 
                 if ((x_eye >= (center(1)+x_fp-(window_fix/2)))&&(x_eye <= (center(1)+x_fp+(window_fix/2)))&&(y_eye >= (center(2)-y_fp-(window_fix/2)))&&(y_eye <= (center(2)-y_fp+(window_fix/2))))
                     stage='wait_for_hold';
                     t_start_trial=GetSecs;
                 elseif GetSecs-t_start_trial>t_waitforfixation
                     stage='trial_start';
                 end
+                % check if key is pressed
                 checkkeys;
 
             case 'wait_for_hold'
+                % Matlab message
                 disp('wait_for_hold')
 
                 %Check recording status, stop display if error
@@ -310,25 +323,33 @@ try
                 evt=Eyelink('NewestFloatSample');
                 x_eye=evt.gx(eye_used+1);
                 y_eye=evt.gy(eye_used+1);
-                % if eye position is not in the box, flag fix as 0
+                % if eye position is not in the box, start a new trial with
+                % new fixation point, update time, if eye is in the box and
+                % hold for the amount of the time, go to reward stage
                 if not((x_eye >= (center(1)+x_fp-(window_fix/2)))&&(x_eye <= (center(1)+x_fp+(window_fix/2)))&&(y_eye >= (center(2)-y_fp-(window_fix/2)))&&(y_eye <= (center(2)-y_fp+(window_fix/2))))
                     stage='trial_new_start';
                     t_start_trial=GetSecs;
                 elseif GetSecs-t_start_trial>t_fixation
                     stage='reward';
                 end
+                % check if key is pressed
                 checkkeys;
             case 'reward'
                 % display successful trial time
                 disp(num2str(t_start))
-                % print to screen and give reward
+                % Matlab message
                 fprintf('reward 2\n');
+                % Give reward
                 cclabReward(reward, 1, IRI)
                 % Eyelink message, reward and reward amount
                 Eyelink( 'Message', 'Reward %d', reward);
+                % update time
                 t_start_trial=GetSecs;
+                % Go to inter trial interval
                 stage='inter_trial_interval';
+
             case 'inter_trial_interval'
+                % Matlab message
                 disp('inter_trial_interval')
 
                 %START TRIAL END
@@ -337,24 +358,26 @@ try
                 Screen('DrawingFinished',window);
                 % update time
                 Screen('Flip',window, t_start_trial + t1 - slack);
+                % wait until t_trialend has passed. Go to new trial with
+                % new fixation point
                 if GetSecs-t_start_trial>t_trialend
                     stage='trial_new_start';
                 end
 
             case 'trial_end'
                 %STOP TRIAL END
-
+                % Eyelink message, trial end
                 Eyelink('Message', 'Trialend');
 
-                %Stop recording
+                %Stop recording, close file,clean up screen, show cursor, give back
+                %keyboard control,  matlab message
                 Eyelink('StopRecording');
                 ShowCursor;
                 Screen('CloseAll');
                 ListenChar(1);
                 fprintf('Aborted.\n');
-                Eyelink('StopRecording');
                 Eyelink('CloseFile');
-                % download data file
+                % download data file, shutdown eyelink
                 cd(path)
                 try
                     fprintf('Receiving data file ''%s''\n', edfFile );
@@ -370,11 +393,14 @@ try
                 end
                 Eyelink('ShutDown');
                 return ;
+                % when check keys, if up is pressed, go to pause state
             case 'pause'
-                Screen('FillRect',window, el.msgfontcolour);
+                % fill grey screen, check for other key pressed
+                Screen('FillRect',window, el.backgroundcolour);
                 Screen('DrawingFinished',window);
                 Screen('Flip',window);
                 checkkeys;
+                %if down key is pressed, return to trial start stage
                 if (keyCode(down)==1)
                     stage='trial_start';
                 end
