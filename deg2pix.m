@@ -6,7 +6,7 @@ function [pix] = deg2pix(xy, cfg)
 if ndims(xy)==2 && size(xy, 1)==2
     pix = vertcat(xy(1, :) * cfg.ppdX, xy(2, :) * cfg.ppdY);
 elseif ndims(xy)==2 && size(xy, 2)==2
-    pix = vertcat(xy(:, 1) * cfg.ppdX, xy(:, 2) * cfg.ppdY);
+    pix = horzcat(xy(:, 1) * cfg.ppdX, xy(:, 2) * cfg.ppdY);
 else
     pix = xy * cfg.ppdX;
 end

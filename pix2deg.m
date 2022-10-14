@@ -4,10 +4,10 @@ function [deg] = pix2deg(xy, cfg)
 %   y coord. In all other cases, convert everything as if an x coord.
 
 if ndims(xy)==2 && size(xy, 1)==2
-    pix = vertcat(xy(1, :) / cfg.ppdX, xy(2, :) / cfg.ppdY);
+    deg = vertcat(xy(1, :) / cfg.ppdX, xy(2, :) / cfg.ppdY);
 elseif ndims(xy)==2 && size(xy, 2)==2
-    pix = vertcat(xy(:, 1) / cfg.ppdX, xy(:, 2) / cfg.ppdY);
+    deg = horzcat(xy(:, 1) / cfg.ppdX, xy(:, 2) / cfg.ppdY);
 else
-    pix = xy / cfg.ppdX;
+    deg = xy / cfg.ppdX;
 end
 
