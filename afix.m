@@ -34,6 +34,8 @@ function [] = afix(cfg)
         % TODO kb handling
         if keyIsDown && keyCode(KbName('q'))
             state = "DONE";
+        elseif keyIsDown && keyCode(KbName('p'))
+            state = "PAUSE";    
         end
 
         % TODO eye tracker
@@ -62,8 +64,16 @@ function [] = afix(cfg)
                     state = "WAIT_ITI";
                 elseif tNow - tStateStart > cfg.fixation_time
                     mylogger(cfg, "WAIT_FOR_FIX: success\n");
+                    tStateStart = drawScreen(cfg, wp, []);
                     tStateStart = tNow;
                     state = "REWARD";
+                end
+            case "PAUSE"
+                drawScreen(cfg, wp, []);
+                state = "WAIT_PAUSE";
+            case "WAIT_PAUSE"
+                if keyIsDown
+                    state = "START";
                 end
             case "WAIT_ITI"
                 if tNow-tStateStart > cfg.intertrial_time
@@ -73,7 +83,7 @@ function [] = afix(cfg)
             case "REWARD"
                 cclabReward(cfg.reward_size, cfg.reward_number, cfg.reward_gap);
                 tStateStart = tNow;
-                state = "START";
+                state = "WAIT_ITI";
             case "DONE"
                 bQuit = true;
             otherwise
