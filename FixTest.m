@@ -11,6 +11,7 @@ try
         disp('Folder created')
         disp(path)
     end
+   
     Screen('Preference', 'SkipSyncTests', 1);
 
 
@@ -20,14 +21,14 @@ try
     %ppd=50; %Number of pixels per degree of visual angle
     ppd=2*obs_dist*ppcm*tan(pi/360);
 
-    fp_color=[0 0 255]; % color of the fixation point
+    fp_color=[255 0 0]; % color of the fixation point
     fpr=round(ppd*1.5); %radius of fixation point
-    v_x_fp=[0, round(-8*ppd), round(8*ppd)]; % position of the fixation points
-    v_y_fp=[0, round(-8*ppd), round(8*ppd)];
-    window_fix=round(6*ppd); % the size of the window for fixations
+    v_x_fp=[0, round(-15*ppd), round(15*ppd)]; % position of the fixation points x_axis locations
+    v_y_fp=[0, round(-15*ppd), round(15*ppd)]; % position of the fixation points y_axis locations
+    window_fix=round(50*ppd); % the size of the window for fixations
 
     t_waitforfixation=2.0; % wait time for object to fix when fp is first presented
-    t_fixation=1;% time required to hold fixation (s)
+    t_fixation=0;% time required to hold fixation (s)
     t_trialend=1;  % Inter trial interval
     reward = 500; % reward time (ms)
     t1=0.2; % image loop time
@@ -222,7 +223,9 @@ try
         % Eyelink message, start of trial
         Eyelink( 'Message', 'Trialstart');
         %Start recording
+        disp('start')
         Eyelink('StartRecording');
+        
         % Eyelink message, record trial number
         Eyelink('Command', 'record_status_message ''TRIAL %d''', i);
 
@@ -426,6 +429,7 @@ try
                 Screen('CloseAll');
                 ListenChar(1);
                 fprintf('Aborted.\n');
+                disp('end')
                 Eyelink('StopRecording');
                 Eyelink('CloseFile');
                 % download data file to desired path
@@ -451,6 +455,7 @@ try
         Eyelink('Message', 'Trialend');
 
         %Stop recording
+        disp('stop')
         Eyelink('StopRecording');
 
 
@@ -494,6 +499,7 @@ try
                 Screen('CloseAll');
                 ListenChar(1);
                 fprintf('Aborted.\n');
+                disp('stop')
                 Eyelink('StopRecording');
                 Eyelink('CloseFile');
                 % download data file

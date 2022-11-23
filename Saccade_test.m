@@ -30,7 +30,7 @@ try
 
     t_waitforfixation=2.0; % Time window since fixation on
     t_fixation=1;% hold fixation (s)
-    t_wait_for_saccade=3;
+    t_wait_for_saccade=0;
     t_saccade=1;
     t_hold_saccade=1;
     t_trialend=1;  % Inter trial interval
@@ -39,9 +39,8 @@ try
     IRI = 10; %interreward interval for multiple reward delivery
 
     % Use default screenNumber if none specified
-    if (nargin < 1)
         screenNumber = [];
-    end
+    
 
     % Switch KbName into unified mode: It will use the names of the OS-X
     % platform on all platforms in order to make this script portable:

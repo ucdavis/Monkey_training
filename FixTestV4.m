@@ -34,9 +34,8 @@ try
     v_x_fp=[0]; % x position of the fixation points , round(-8*ppd), round(8*ppd)
     v_y_fp=[0]; % y position of the fixation points , round(-8*ppd), round(8*ppd)
     window_fix=round(windowSize*ppd); % the size of the accepted window for fixation point
-t_blink_before=0.1;
-t_blink_after=0.1;
-    t_waitforfixation=2; % wait time for subjuct to fix when fp is first presented
+
+    t_waitforfixation=2.0; % wait time for subjuct to fix when fp is first presented
     t_fixation=t_fixation_input;% time required to hold fixation (s)
     t_trialend=1;  % Inter trial interval
     reward = 250; % reward time (ms)
@@ -217,7 +216,7 @@ t_blink_after=0.1;
 
     % Fill the screen and get flip interval
     Screen('Rect',window);
-    %     slack=Screen('GetFlipInterval',window)/2;
+    slack=Screen('GetFlipInterval',window)/2;
     RandStream.setGlobalStream(RandStream('mt19937ar','seed',sum(100*clock)));
     % background on
     Screen('FillRect',window, el.backgroundcolour);
@@ -226,6 +225,7 @@ t_blink_after=0.1;
 
     % init loop
     trial_success=1;
+    trial_total=1;
     % Define first state
     stage='trial_new_start';
     change=false;
@@ -245,7 +245,7 @@ t_blink_after=0.1;
                 %Start recording
                 Eyelink('StartRecording');
                 % Eyelink message, record trial number
-                Eyelink('Command', 'record_status_message "TRIAL %d "', trial_success);
+                Eyelink('Command', 'record_status_message "TRIAL %d / %d"', trial_success,trial_total);
 
                 % Matlab message, display trial number
                 disp('trial_start')
@@ -295,13 +295,13 @@ t_blink_after=0.1;
                 % draw background, update time
                 Screen('FillRect',window, el.backgroundcolour);
                 Screen('DrawingFinished',window);
-                Screen('Flip',window);
+                t_start_trial=Screen('Flip',window, t_start_trial);
 
                 % draw fixation point, update time
                 Screen('FillRect',window, el.backgroundcolour);
                 Screen('FillOval',window,fp_color, [center(1)-fpr+x_fp, center(2)-fpr-y_fp, center(1)+fpr+x_fp, center(2)+fpr-y_fp],5);
                 Screen('DrawingFinished',window);
-                t_start_trial=Screen('Flip',window);
+                t_start_trial=Screen('Flip',window, t_start_trial );
                 % draw box on eyelink machine, representing window of
                 % accepted eye position
                 Eyelink('command','clear_screen %d', 0);
@@ -330,21 +330,13 @@ t_blink_after=0.1;
                 elseif GetSecs-t_start_trial>t_waitforfixation
                     stage='inter_trial_interval';
                 end
-                % draw background, update time
-                Screen('FillRect',window, el.backgroundcolour);
-                Screen('Flip',window);
-                WaitSecs(t_blink_before)
-                % draw fixation point, update time
-                Screen('FillOval',window,fp_color, [center(1)-fpr+x_fp, center(2)-fpr-y_fp, center(1)+fpr+x_fp, center(2)+fpr-y_fp],5);
-                Screen('Flip',window);
-                WaitSecs(t_blink_after)
-
                 % check if key is pressed
                 checkkeys;
 
             case 'wait_for_hold'
                 % Matlab message
                 %disp('wait_for_hold')
+trial_total=trial_total+1;
                 %Check recording status, stop display if error
                 error=Eyelink('CheckRecording');
                 if(error~=0)
