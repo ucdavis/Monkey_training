@@ -31,11 +31,11 @@ try
 
     fp_color=[0 0 255]; % color of the fixation point
     fpr=round(ppd*0.5); %radius of fixation point
-    v_x_fp=[0]; % x position of the fixation points , round(-8*ppd), round(8*ppd)
+    v_x_fp=[-8*ppd,8*ppd]; % x position of the fixation points , round(-8*ppd), round(8*ppd)
     v_y_fp=[0]; % y position of the fixation points , round(-8*ppd), round(8*ppd)
     window_fix=round(windowSize*ppd); % the size of the accepted window for fixation point
-t_blink_before=0.1;
-t_blink_after=0.1;
+    t_blink_before=0.1;
+    t_blink_after=0.1;
     t_waitforfixation=2; % wait time for subjuct to fix when fp is first presented
     t_fixation=t_fixation_input;% time required to hold fixation (s)
     t_trialend=1;  % Inter trial interval
@@ -229,14 +229,23 @@ t_blink_after=0.1;
     % Define first state
     stage='trial_new_start';
     change=false;
+    numrep=20;
+    numblock_x=length(v_x_fp);
+    numblock_y=length(v_y_fp);
+    block_init_x=repelem(v_x_fp,[repelem(numrep/numblock_x,numblock_x)]);
+    block_final_x=repelem(block_init_x,9999999);
+    block_init_y=repelem(v_y_fp,[repelem(numrep/numblock_y,numblock_y)]);
+    block_final_y=repelem(block_init_y,9999999);
     while trial_success>0
         switch(stage)
             case 'trial_new_start'
                 % Random draw x and y of fp from the pool above, start a
                 % new fixation point when subject refuses to look at the
                 % fixation point
-                x_fp=v_x_fp(randperm(length(v_x_fp),1));
-                y_fp=v_y_fp(randperm(length(v_x_fp),1));
+                %                 x_fp=v_x_fp(randperm(length(v_x_fp),1));
+                %                 y_fp=v_y_fp(randperm(length(v_x_fp),1));
+                x_fp=block_final_x(trial_success);
+                y_fp=block_final_y(trial_success);
                 stage='trial_start';
 
             case 'trial_start'
@@ -333,11 +342,11 @@ t_blink_after=0.1;
                 % draw background, update time
                 Screen('FillRect',window, el.backgroundcolour);
                 Screen('Flip',window);
-                WaitSecs(t_blink_before)
+                WaitSecs(t_blink_before);
                 % draw fixation point, update time
                 Screen('FillOval',window,fp_color, [center(1)-fpr+x_fp, center(2)-fpr-y_fp, center(1)+fpr+x_fp, center(2)+fpr-y_fp],5);
                 Screen('Flip',window);
-                WaitSecs(t_blink_after)
+                WaitSecs(t_blink_after);
 
                 % check if key is pressed
                 checkkeys;
