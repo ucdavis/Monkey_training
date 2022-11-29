@@ -1,4 +1,6 @@
-
+% Update Log
+% 11/28/2022: Add Multi-poistion block fixation task, edit v_fp_x and
+% v_fp_y and numrep to have the task run in block (eg. 5 left and 5 right)
 function FixTestV2(sub,windowSize,t_fixation_input)
 
 try
@@ -7,6 +9,7 @@ try
     % Set pathway
     currDate = strrep(datestr(datetime("today")), ':', '_');
     path = strcat('E:\EyelinkData\',sub,'\',currDate,'\'); % where to keep the edf files
+
     % check if foloooder exists, if not, create it
     if isfolder(path)
         disp('Folder exisis')
@@ -96,6 +99,7 @@ try
         cleanup; % Abort experiment (see cleanup function below)
         return
     end
+    ListenChar(-1);
 
     % Open an EDF file and name it
     failOpen = Eyelink('OpenFile', edfFile);
@@ -232,10 +236,8 @@ try
     numrep=20;
     numblock_x=length(v_x_fp);
     numblock_y=length(v_y_fp);
-    block_init_x=repelem(v_x_fp,[repelem(numrep/numblock_x,numblock_x)]);
-    block_final_x=repelem(block_init_x,9999999);
-    block_init_y=repelem(v_y_fp,[repelem(numrep/numblock_y,numblock_y)]);
-    block_final_y=repelem(block_init_y,9999999);
+    block_x=repelem(v_x_fp,[repelem(numrep/numblock_x,numblock_x)]);
+    block_y=repelem(v_y_fp,[repelem(numrep/numblock_y,numblock_y)]);
     while trial_success>0
         switch(stage)
             case 'trial_new_start'
@@ -244,8 +246,13 @@ try
                 % fixation point
                 %                 x_fp=v_x_fp(randperm(length(v_x_fp),1));
                 %                 y_fp=v_y_fp(randperm(length(v_x_fp),1));
-                x_fp=block_final_x(trial_success);
-                y_fp=block_final_y(trial_success);
+                if rem(trial_success,numrep)~=0
+                    x_fp=block_x(rem(trial_success,numrep));
+                    y_fp=block_y(rem(trial_success,numrep));
+                else
+                    x_fp=block_x(end);
+                    y_fp=block_y(end);
+                end
                 stage='trial_start';
 
             case 'trial_start'
@@ -272,8 +279,7 @@ try
                 %START WAIT FOR FIXATION, get current time, start counting down
                 t_start=GetSecs;
 
-                % Eyelink message, wait subject to fix
-                Eyelink('Message', 'Waitfix');
+
                 % check if key is pressed in this stage
                 checkkeys;
                 % Move to stage, put on fixation point on the screen
@@ -311,10 +317,13 @@ try
                 Screen('FillOval',window,fp_color, [center(1)-fpr+x_fp, center(2)-fpr-y_fp, center(1)+fpr+x_fp, center(2)+fpr-y_fp],5);
                 Screen('DrawingFinished',window);
                 t_start_trial=Screen('Flip',window);
+                % Eyelink message
+                Eyelink('Message', 'PutOnFix');
                 % draw box on eyelink machine, representing window of
                 % accepted eye position
                 Eyelink('command','clear_screen %d', 0);
                 Eyelink('command','draw_box %d %d %d %d 15', box1, box2, box3,box4);
+
                 % check if key is pressed
                 checkkeys;
                 % update stage
@@ -323,6 +332,7 @@ try
             case 'wait_for_fix'
                 % Matlab message
                 %disp('wait_for_fix')
+                Eyelink('Message', 'WaitForFix');
 
                 % get eye position
                 evt=Eyelink('NewestFloatSample');
@@ -359,6 +369,8 @@ try
                 if(error~=0)
                     break;
                 end
+                Eyelink('Message', 'WaitForHold');
+
                 % check eye position
                 evt=Eyelink('NewestFloatSample');
                 x_eye=evt.gx(eye_used+1);
@@ -376,11 +388,11 @@ try
                 checkkeys;
             case 'reward'
                 % display successful trial time
-                disp(num2str(t_start))
+                disp(num2str(t_start));
                 % Matlab message
                 fprintf('reward 2\n');
                 % Give reward
-                cclabReward(reward, 1, IRI)
+                cclabReward(reward, 1, IRI);
                 % Eyelink message, reward and reward amount
                 Eyelink( 'Message', 'Reward %d', reward);
                 % update time
@@ -391,6 +403,8 @@ try
                 stage='inter_trial_interval';
             case 'inter_trial_interval'
                 Eyelink('StopRecording');
+                Eyelink('Message', 'Inter-Trial-Interval');
+
                 stage='inter_trial_interval_2';
             case 'inter_trial_interval_2'
                 % Matlab message
@@ -411,8 +425,8 @@ try
 
             case 'exp_end'
                 %STOP TRIAL END
-                % Eyelink message, trial end
-                Eyelink('Message', 'Trialend');
+                % Eyelink message, Exp end
+                Eyelink('Message', 'ExpEnd');
 
                 %Stop recording, close file,clean up screen, show cursor, give back
                 %keyboard control,  matlab message
