@@ -1,4 +1,4 @@
-% function checkkeys
+%function checkkeys
 [keyIsDown, ~, keyCode]=KbCheck;
 
 
@@ -22,7 +22,7 @@ end
 
 if (keyIsDown==1 && keyCode(space))
     disp('reward 4')
-    cclabReward(reward, 1, IRI)
+    cclabReward(cfg.reward, 1, IRI)
 end
 
 
