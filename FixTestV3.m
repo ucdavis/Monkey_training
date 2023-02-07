@@ -1,8 +1,8 @@
 % Update Log
 % 11/28/2022: Add Multi-poistion block fixation task, edit v_fp_x and
 % v_fp_y and numrep to have the task run in block (eg. 5 left and 5 right)
-%function FixTestV3(cfg)
-%persistent flag
+%function FixTestV3(cfg)o
+%persistent flago
 
 try
     % Add necessary libaries
@@ -32,10 +32,10 @@ try
     ppcm=numpixel(1)/screenlen; %Number of pixels per centimeter default is 40
     obs_dist = 78;   % viewing distance (cm)
     ppd=2*obs_dist*ppcm*tan(pi/360);   %Number of pixels per degree of visual angle
-    %ppd= deg2pix(1, cfg);
 
     fp_color=[0 0 255]; % color of the fixation point
     fpr=round(ppd*cfg.fpr); %radius of fixation point
+
     if ~cfg.polar
         v_x_fp=cfg.fp_x*ppd; % x position of the fixation points , round(-8*ppd), round(8*ppd)
         v_y_fp=cfg.fp_y*ppd; % y position of the fixation points , round(-8*ppd), round(8*ppd)
@@ -50,8 +50,6 @@ try
     t_blink_after=0.1;
     t_waitforfixation=2; % wait time for subjuct to fix when fp is first presented
 
-    %t_trialend=1;  % Inter trial interval
-    %reward =250; % reward time (ms)
 
     %t1=0.2; % image loop time
     IRI = 1000; %interreward interval for multiple reward delivery
@@ -186,7 +184,7 @@ try
     Eyelink('Command','screen_phys_coords = -240.0 132.5 240.0 -132.5 '); % this is the size of the default screen Dell 2005FPW
     % distance in mm from the center of the screen to [left top right bottom]
     % edge of screen
-    Eyelink('Command', 'screen_distance = 300') %  Need to get from experimenter distance from center of eye to the center of the screen
+    Eyelink('Command', 'screen_distance = 300'); %  Need to get from experimenter distance from center of eye to the center of the screen
     % we need to measure this and get the proper number
 
 
@@ -242,7 +240,8 @@ try
     trial_success=1;
     trial_attemp=1;
     trial_total=1;
-
+    % Set used eye to Left eye as default
+    eye_used = el.LEFT_EYE;
     % Define first state
     stage='trial_new_start';
     change=false;
@@ -268,17 +267,31 @@ try
     while trial_success>0
         switch(stage)
             case 'trial_new_start'
-                error=Eyelink('CheckRecording');
-                if(error~=0)
+                try
+                    
+                    status = Eyelink('IsConnected');
+                    
+                    if status~=1
+                        errorConnectStage=stage;
+                        errorConnectStatus=status;
+                        errorConnectTrial=trial_total;
+                        break;
+                    end
+
+                    error=Eyelink('CheckRecording');
+                catch
+                    status = Eyelink('IsConnected');
+
+                    errorRecordingStage=stage;
+                    errorRecordingStatus=status;
+                    errorRecordingTrial=trial_total;
                     break;
                 end
-                %Eyelink('StartRecording');
                 flag=0;
                 % Random draw x and y of fp from the pool above, start a
                 % new fixation point when subject refuses to look at the
                 % fixation point
-                %                 x_fp=v_x_fp(randperm(length(v_x_fp),1));
-                %                 y_fp=v_y_fp(randperm(length(v_x_fp),1));
+                
                 if rem(trial_success,cfg.numrep*numblock)~=0
                     x_fp=block_x(rem(trial_success,numblock*cfg.numrep));
                     y_fp=block_y(rem(trial_success,numblock*cfg.numrep));
@@ -290,16 +303,14 @@ try
                 Results.x_fp(trial_total)=x_fp/ppd;
                 Results.y_fp(trial_total)=y_fp/ppd;
 
-                % Eyelink message, start of trial
+               
 
-
-                %Start recording
 
                 if flag==0
-                    status= Eyelink('IsConnected');
-                    disp(status)
                     Eyelink( 'Message', 'Trialstart');
+                    Eyelink('Message','Trial_total %d',trial_total);
                     Results.TrialStart(trial_total)=GetSecs;
+                    fprintf('TrialStart Total trial %d, success trial %d \n',trial_total,trial_success);
                     flag=1;
                 end
                 if~cfg.polar
@@ -307,11 +318,7 @@ try
                         success_rate=0;
                         success_rate_location_string=' ';
                     else
-                        %                     if size(Results,1)<=20
-                        %                         success_rate=100*sum(Results.TrialSuccess(1:end))/sum(Results.TrialAttemp(1:end));
-                        %                     elseif size(Results,1)>20
-                        %                         success_rate=100*sum(Results.TrialSuccess(end-20:end))/sum(Results.TrialAttemp(end-20:end));
-                        %                     end
+                      
                         temp=Results.TrialSuccess((Results.TrialAttemp==1));
                         tempx=unique(Results.x_fp);
                         tempy=unique(Results.y_fp);
@@ -347,7 +354,6 @@ try
                         end
                         clf;
 
-                        %get(gcf);
                         set(gcf,'Position',[1925 500 400 300]);
                         for i=size(Location,2):-1:1
                             for j=1:size(Location,1)
@@ -375,11 +381,7 @@ try
                         success_rate=0;
                         success_rate_location_string=' ';
                     else
-                        %                     if size(Results,1)<=20
-                        %                         success_rate=100*sum(Results.TrialSuccess(1:end))/sum(Results.TrialAttemp(1:end));
-                        %                     elseif size(Results,1)>20
-                        %                         success_rate=100*sum(Results.TrialSuccess(end-20:end))/sum(Results.TrialAttemp(end-20:end));
-                        %                     end
+                      
                         temp=Results.TrialSuccess((Results.TrialAttemp==1));
                         tempdegree=allcomb/ppd;
                         for i=1:size(tempdegree,1)
@@ -414,7 +416,6 @@ try
                         end
                         clf;
 
-                        %get(gcf);
                         set(gcf,'Position',[1925 500 400 300]);
                         for i=size(Location,2):-1:1
 
@@ -437,29 +438,13 @@ try
                         end
                     end
                 end
-                %Eyelink('StartRecording');
+            
                 % Eyelink message, record trial number
                 if flag ==1
                     Eyelink('Command', 'record_status_message "TRIAL %d Success %d Location %s "', trial_success,round(success_rate),success_rate_location_string);
 
                     flag=2;
                 end
-
-                % Matlab message, display trial number
-                %disp('trial_start')
-
-
-
-
-                %Clear screen on eyelink machine
-                Eyelink('command','clear_screen %d', 0);
-
-                % Set used eye to Left eye as default
-                eye_used = el.LEFT_EYE;
-
-
-                %START WAIT FOR FIXATION, get current time, start counting down
-                t_start_trial=GetSecs;
 
 
                 % check if key is pressed in this stage
@@ -468,6 +453,24 @@ try
                 % Move to stage, put on fixation point on the screen
                 stage='put_on_fp';
             case 'put_on_fp'
+                try
+                    status = Eyelink('IsConnected');
+                    if status~=1
+                        errorConnectStage=stage;
+                        errorConnectStatus=status;
+                        errorConnectTrial=trial_total;
+                        break;
+                    end
+
+                    error=Eyelink('CheckRecording');
+                catch
+                    status = Eyelink('IsConnected');
+
+                    errorRecordingStage=stage;
+                    errorRecordingStatus=status;
+                    errorRecordingTrial=trial_total;
+                    break;
+                end
                 % Matlab message, display put_on_fp
                 if change
                     evt=Eyelink('NewestFloatSample');
@@ -483,28 +486,18 @@ try
                     box3=round(center(1)+x_fp+(window_fix/2));
                     box4=round(center(2)-y_fp+(window_fix/2));
                 end
-                % Check recording status, stop display if error
-                %                 error=Eyelink('CheckRecording');
-                %                 if(error~=0)
-                %
-                %                     break;
-                %                 end
 
-                % draw background, update time
-                Screen('FillRect',window, el.backgroundcolour);
-                Screen('DrawingFinished',window);
-                Screen('Flip',window);
+
+              
 
                 % draw fixation point, update time
                 Screen('FillRect',window, el.backgroundcolour);
                 Screen('FillOval',window,fp_color, [center(1)-fpr+x_fp, center(2)-fpr-y_fp, center(1)+fpr+x_fp, center(2)+fpr-y_fp],5);
                 Screen('DrawingFinished',window);
                 t_start_trial=Screen('Flip',window);
-                % Eyelink message
 
                 % draw box on eyelink machine, representing window of
                 % accepted eye position
-                Eyelink('command','clear_screen %d', 0);
                 Eyelink('command','draw_box %d %d %d %d 15', box1, box2, box3,box4);
 
                 % check if key is pressed
@@ -512,8 +505,6 @@ try
                 if flag==2
 
                     disp('put on fix')
-                    status= Eyelink('IsConnected');
-                    disp(status)
                     Eyelink('Message', 'PutOnFix');
                     flag=3;
                     Results.PutOnFix(trial_total)=GetSecs;
@@ -522,15 +513,31 @@ try
                 stage='wait_for_fix';
 
             case 'wait_for_fix'
+                try
+                    status = Eyelink('IsConnected');
+                    if status~=1
+                        errorConnectStage=stage;
+                        errorConnectStatus=status;
+                        errorConnectTrial=trial_total;
+                        break;
+                    end
+
+                    error=Eyelink('CheckRecording');
+                catch
+                    status = Eyelink('IsConnected');
+
+                    errorRecordingStage=stage;
+                    errorRecordingStatus=status;
+                    errorRecordingTrial=trial_total;
+                    break;
+                end
+
                 if flag==3
                     disp('wait for fix')
-                    status= Eyelink('IsConnected');
-                    disp(status)
                     Eyelink('Message', 'WaitForFix');
                     flag=4;
                     Results.WaitForFixFP(trial_total)=GetSecs;
                 end
-                % Matlab message
 
 
                 % get eye position
@@ -555,6 +562,7 @@ try
                 elseif GetSecs-t_start_trial>t_waitforfixation
                     stage='inter_trial_interval';
                 end
+
                 if Flash
                     % draw background, update time
                     Screen('FillRect',window, el.backgroundcolour);
@@ -570,11 +578,27 @@ try
                 checkkeys;
 
             case 'wait_for_hold'
+                try
+                    status = Eyelink('IsConnected');
+                    if status~=1
+                        errorConnectStage=stage;
+                        errorConnectStatus=status;
+                        errorConnectTrial=trial_total;
+                        break;
+                    end
+
+                    error=Eyelink('CheckRecording');
+                catch
+                    status = Eyelink('IsConnected');
+
+                    errorRecordingStage=stage;
+                    errorRecordingStatus=status;
+                    errorRecordingTrial=trial_total;
+                    break;
+                end
                 % Matlab message
                 if flag==5
                     disp('wait_for_hold')
-                    status= Eyelink('IsConnected');
-                    disp(status)
                     Eyelink('Message', 'WaitForHold');
                     flag=6;
                     Results.WaitForHoldFP(trial_total)=GetSecs;
@@ -582,12 +606,6 @@ try
                     Results.TrialAttemp(trial_total)=1;
 
                 end
-
-                %Check recording status, stop display if error
-                %                 error=Eyelink('CheckRecording');
-                %                 if(error~=0)
-                %                     break;
-                %                 end
 
 
                 % check eye position
@@ -609,8 +627,24 @@ try
                 % check if key is pressed
                 checkkeys;
             case 'reward'
-                % display successful trial time
-                %disp(num2str(t_start));
+                try
+                    status = Eyelink('IsConnected');
+                    if status~=1
+                        errorConnectStage=stage;
+                        errorConnectStatus=status;
+                        errorConnectTrial=trial_total;
+                        break;
+                    end
+
+                    error=Eyelink('CheckRecording');
+                catch
+                    status = Eyelink('IsConnected');
+
+                    errorRecordingStage=stage;
+                    errorRecordingStatus=status;
+                    errorRecordingTrial=trial_total;
+                    break;
+                end
                 % Matlab message
                 fprintf('reward 2\n');
                 disp(trial_success)
@@ -618,26 +652,25 @@ try
                 if cfg.randreward
                     if rand>=cfg.randper
                         cclabReward(cfg.reward*2, 1, IRI);
-                        Eyelink( 'Message', 'Reward %d', cfg.reward*2);
+                        Eyelink( 'Message', 'Reward %d Trial %d', cfg.reward*2, trial_success);
                         Results.RewardAmount(trial_total)=cfg.reward*2;
 
 
                     else
                         cclabReward(cfg.reward, 1, IRI);
-                        Eyelink( 'Message', 'Reward %d', cfg.reward);
+                        Eyelink( 'Message', 'Reward %d Trial %d', cfg.reward,trial_success);
                         Results.RewardAmount(trial_total)=cfg.reward;
 
                     end
                 else
                     cclabReward(cfg.reward, 1, IRI);
-                    Eyelink( 'Message', 'Reward %d', cfg.reward);
+                    Eyelink( 'Message', 'Reward %d Trial %d', cfg.reward,trial_success);
                     Results.RewardAmount(trial_total)=cfg.reward;
 
 
                 end
                 % Eyelink message, reward and reward amount
                 % update time
-                t_start_trial=GetSecs;
                 Results.Reward(trial_total)=GetSecs;
                 Results.TrialSuccess(trial_total)=1;
                 if rem(trial_success,cfg.numrep*numblock)==0
@@ -652,37 +685,44 @@ try
 
                 stage='inter_trial_interval';
             case 'inter_trial_interval'
-                %Eyelink('StopRecording');
+                try
+                    status = Eyelink('IsConnected');
+                    if status~=1
+                        errorConnectStage=stage;
+                        errorConnectStatus=status;
+                        errorConnectTrial=trial_total;
+                        break;
+                    end
+
+                    error=Eyelink('CheckRecording');
+                catch
+                    status = Eyelink('IsConnected');
+
+                    errorRecordingStage=stage;
+                    errorRecordingStatus=status;
+                    errorRecordingTrial=trial_total;
+                    break;
+                end
+                Eyelink('command','clear_screen %d', 0);
+
                 disp('iti')
-                status= Eyelink('IsConnected');
-                disp(status)
                 Eyelink('Message', 'Inter-Trial-Interval');
                 % Fill background grey
                 Screen('FillRect',window, el.backgroundcolour);
                 Screen('DrawingFinished',window);
                 % update time
-                Screen('Flip',window);
+                t_start_trial=Screen('Flip',window);
                 trial_total=trial_total+1;
-                cd(path);
-
-                save(edfFile, 'Results');
+                save(fullfile(path,edfFile), 'Results');
                 st1='cfg';
-                save(append(edfFile,st1), 'cfg')
-                cd('E:\Eyelink_test_ground_Wenqing')
-                stage='inter_trial_interval_2';
-            case 'inter_trial_interval_2'
-                % Matlab message
-
-                %START TRIAL END
-
-                % wait until t_trialend has passed. Go to new trial with
-                % new fixation point
+                save(fullfile(path,append(edfFile,st1)), 'cfg');               
                 WaitSecs(cfg.t_trialend);
                 stage='trial_new_start';
 
 
 
             case 'exp_end'
+
                 %STOP TRIAL END
                 % Eyelink message, Exp end
                 Eyelink('Message', 'ExpEnd');
@@ -755,6 +795,7 @@ catch
     %above.  Importantly, it closes the onscreen window if its open.
     Screen('CloseAll');
     ListenChar(1);
+    disp('shutdown')
     Eyelink('ShutDown');
     % Restores the mouse cursor.
     ShowCursor;
