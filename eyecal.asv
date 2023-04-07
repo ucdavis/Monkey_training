@@ -1,0 +1,175 @@
+function eyecal(nCalPts)
+
+% Default to 5-point calibration:
+if nargin<1
+    nCalPts = 5;
+end
+
+% Define some basic constants:
+const.monkeyScreen =  max(Screen('Screens'));
+const.interTrial = 3; % In seconds
+const.bgColor = [127 127 127];
+const.targColor = [255 255 255];
+
+% Connect to Eyelink
+if ~Eyelink('IsConnected')
+    Eyelink('Initialize');
+end
+
+% Set up the canvas:
+[window, screenRect] = Screen('OpenWindow', ...
+    const.monkeyScreen, const.bgColor, [], 32);
+HideCursor;
+blankScreen = Screen('OpenOffscreenWindow', ...
+    const.monkeyScreen, const.bgColor, [], 32);
+
+const.screenCenter = ...
+    round([mean(screenRect([1 3])) mean(screenRect([2 4]))]);
+
+startEyelinkCal(screenRect, nCalPts);
+
+% Set up keys and functions to handle keypresses during the calibration
+% task:
+KbName('UnifyKeyNames');
+fixCode = KbName('space');
+keyHandlers(1).key = 'ESCAPE'; % Terminate the task
+keyHandlers(1).func = @escapeHandler;
+keyHandlers(1).wake = true;
+keyHandlers(2).key = 'j'; % Immediate juice reward
+%keyHandlers(2).func = {@juicej, .05};
+%keyHandlers(3).key = 'space'; % Example for flicker calibration; use your
+%keyHanlders(3).func = @flickerStimulus; % own stimulus display function
+
+% Define fixation spot parameters:
+fixShape  = [-6 -8; ...
+             6  8];
+fixShape2 = [-5 -7; ...
+             5  7];
+targShape = [-8 -8; ...
+             8  8];
+fixRect = shiftPoints(fixShape, const.screenCenter)';
+fixRect = fixRect(:)';
+fixRect2 = shiftPoints(fixShape2, const.screenCenter)';
+fixRect2 = fixRect2(:)';
+
+% %Initalize juice delivery system
+% DIO = digitalio('nidaq','1');
+% lines = addline(DIO,0:7,3,'out'); 
+
+% Sync with the screen(?)
+Screen('CopyWindow',blankScreen,window,screenRect,screenRect);
+Screen('Flip',window);
+
+
+
+
+% sharedWorkspace EYECAL -clear
+% sharedWorkspace('EYECAL', 'keepGoing', true);
+KeepGoing = 1;
+
+
+trialNum = 0;
+%juiceTimer = getSecs; % Unused
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%  BEGIN SESSION  %%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%while continueRunning
+while KeepGoing %sharedWorkspace('EYECAL','keepGoing')
+    % Clear the screen:
+    Screen('CopyWindow', blankScreen, window, screenRect, screenRect);
+    Screen('Flip', window);
+    
+    trialNum = trialNum+1;
+    % Determine where Eyelink expects the target to appear:
+    [result, targX, targY] = Eyelink('TargetCheck');
+    targRect = shiftPoints(targShape, [targX targY])';
+    targRect = targRect(:)';
+   
+    % draw target spot:
+    Screen('FillRect', window, const.targColor, targRect);
+    Screen('Flip', window);
+
+    % Wait .5 seconds:
+    sleepWithKbCheck(.1,keyHandlers);
+    if ~ KeepGoing%~sharedWorkspace('EYECAL','keepGoing');
+        break;
+    end
+
+    % make sure the target's on the screen
+    result = 0;
+    [result,~,~] = Eyelink('TargetCheck');
+    
+    runit = 1;
+    while runit && result == 1
+
+        [keyDown, ~, keyCode] = KbCheck;
+
+        keyCode = find(keyCode);
+
+        if keyDown && sum(ismember(keyCode, 32)) == 1
+
+            % accept trigger code
+            Eyelink('AcceptTrigger');
+
+            % Beep:
+            sound(sin(1:.4:400));
+
+            % exit the while
+            runit = 0;
+            break;
+        end
+    end
+
+    % Clear the screen:
+    Screen('CopyWindow', blankScreen, window, screenRect, screenRect);
+    Screen('Flip', window);
+    % Wait the intertrial interval:
+    sleepWithKbCheck(const.interTrial,keyHandlers);
+    if ~KeepGoing %~sharedWorkspace('EYECAL','keepGoing');
+        break;
+    end
+    
+%     doneMessage = Eyelink('Command','cal_done_beep')
+%     m = Eyelink('Command','eyelink_cal_message')
+%     [r, messageString] = Eyelink('CalMessage')
+
+end
+% Clean up the screen
+Screen('Closeall');
+Eyelink('Shutdown');
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%% HELPER FUNCTIONS %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+function startEyelinkCal(winSize, nCalPts)
+% Start calibration on Eyelink. winSize is the size of the stimulus window
+% being used (ie, the screenRect output from Screen('OpenWindow',...));
+% nCalPoints is the number of calibration points to use (should be 3, 5, or
+% 9).
+Eyelink( 'Command','screen_pixel_coords = %d %d %d %d', winSize(1), winSize(2), winSize(3), winSize(4) );
+calType = ['HV' num2str(nCalPts)];
+Eyelink('Command', ['calibration_type = ' calType]);
+Eyelink('Command','enable_automatic_calibration','NO');
+Eyelink('StartSetup');
+cont = true;
+% Wait until Eyelink actually enters Setup mode (otherwise the
+% SendKeyButton command below can happen too quickly and won't actually put
+% us in calibration mode):
+while cont && Eyelink('CurrentMode')~=2
+    [keyIsDown,secs,keyCode] = KbCheck;
+    if keyIsDown && keyCode(KbName('Esc'))
+        disp('Aborted while waiting for Eyelink!');
+        cont = false;
+    end
+end
+% Magic words: Send the keypress 'c' to select "Calibrate"
+Eyelink('SendKeyButton',double('c'),0,10);
+
+function newPoints = shiftPoints(points, shift)
+% Points should be N-by-2 for N points, shift should be 1-by-2
+%newPoints = bsxfun(@plus,points,shift);
+shift = repmat(shift, size(points,1), 1);
+newPoints = points + shift;
+
+function escapeHandler
+sharedWorkspace('EYECAL','keepGoing',false);
