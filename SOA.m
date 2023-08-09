@@ -10,8 +10,11 @@ try
     %     addpath('E:\Eyelink_test_ground_Wenqing');
 
     % Set pathway
-    currDate = strrep(datestr(datetime("today")), ':', '_');
-    path = strcat('D:\EyelinkData\','NIForaging\',cfg.sub,'\',currDate,'\'); % where to keep the edf files
+     datetime.setDefaultFormats('defaultdate','MM-dd-yyyy')
+
+    
+    currDate = string(datetime("today"));
+    path = strcat('D:\EyelinkData\','SOA\',cfg.sub,'\',currDate,'\'); % where to keep the edf files
     theImageLocation='D:\Wenqing\Foraging\';
     % check if folder exists, if not, create it
     if isfolder(path)
@@ -152,10 +155,11 @@ try
     % Open a grey background window
     [window, rect] = Screen('OpenWindow', screenNumber, [128 128 128]); % Open graphics window
     % Define center coord
-    leftRect= [626 492 722 588];
-                rightRect= [1198 492 1294 588];
+    
 
     [center(1), center(2)] = RectCenter(rect);
+  
+
     % Show on screen
     Screen('Flip', window);
     % Return width and height of the graphics window/screen in pixels
@@ -202,7 +206,7 @@ try
     % set calibration/validation/drift-check(or drift-correct) size as well as background and target colors.
     % It is important that this background colour is similar to that of the stimuli to prevent large luminance-based
     % pupil size changes (which can cause a drift in the eye movement data)
-    el.calibrationtargetsize = 2;% Outer target size as percentage of the screen
+    el.calibrationtargetsize = 0.5;% Outer target size as percentage of the screen
     el.calibrationtargetwidth = 0;% Inner target size as percentage of the screen
     el.backgroundcolour = [128 128 128];% RGB grey
     el.calibrationtargetcolour = [0 0 1];% RGB black
@@ -217,7 +221,7 @@ try
     % See DataViewer manual section: Protocol for EyeLink Data to Viewer Integration > Pre-trial Message Commands
     Eyelink('Message', 'DISPLAY_COORDS %ld %ld %ld %ld', 0, 0, width-1, height-1);
     % Set number of calibration/validation dots and spread: horizontal-only(H) or horizontal-vertical(HV) as H3, HV3, HV5, HV9 or HV13
-    Eyelink('Command', 'calibration_type = HV5'); % horizontal-vertical 9-points
+    Eyelink('Command', 'calibration_type = HV9'); % horizontal-vertical 9-points
     % Allow a supported EyeLink Host PC button box to accept calibration or drift-check/correction targets via button 5
     Eyelink('Command', 'button_function 5 "accept_target_fixation"');
     Eyelink('Command','calibration_area_proportion 0.5 0.5');
@@ -252,14 +256,21 @@ try
     % disable change of fixation window
     change=false;
 
-BlockArr=[];
-for i=1:1000
-  block=[zeros(1,size(cfg.soa,2)) ones(1,size(cfg.soa,2)) 2*ones(1,size(cfg.soa,2)) 3*ones(1,size(cfg.soa,2));cfg.soa cfg.soa cfg.soa cfg.soa ];
-nCondition=size(block,1);
-conditionIndex=randperm(nCondition);
-shuffled_block=block(conditionIndex,:);
-BlockArr=[BlockArr shuffled_block];
-end
+    BlockArr=[];
+    for i=1:1000
+        block=[zeros(1,size(cfg.soa,2)) ones(1,size(cfg.soa,2)) 2*ones(1,size(cfg.soa,2)) 3*ones(1,size(cfg.soa,2));cfg.soa cfg.soa cfg.soa cfg.soa ];
+        nCondition=size(block,2);
+        conditionIndex=randperm(nCondition);
+        shuffled_block=block(:,conditionIndex);
+        BlockArr=[BlockArr shuffled_block];
+    end
+    files=dir('D:\Wenqing\Foraging\Texture\Image*.bmp');
+    x_ip=cfg.imgPos*ppd;
+    imgR=cfg.imgR*ppd;
+      leftRect= [center(1)-imgR-x_ip, center(2)-imgR, center(1)+imgR-x_ip, center(2)+imgR];
+    rightRect= [center(1)-imgR+x_ip, center(2)-imgR, center(1)+imgR+x_ip, center(2)+imgR];
+    [centerleft(1), centerleft(2)] = RectCenter(leftRect);
+    [centerright(1), centerright(2)] = RectCenter(rightRect);
     % start recording
     %Eyelink('StartRecording');
     % init result table
@@ -273,11 +284,11 @@ end
     while trial_success>0
         switch(stage)
             case 'trial_new_start'
-              
+
                 WaitSecs(0.1);
                 Eyelink('StartRecording');
-                disp('trial_start')
-                theImageSample = imread(strcat(theImageLocation,'Natural\Image',num2str(1),'.jpg'));
+                disp('trial_start');
+                theImageSample = imread(strcat(theImageLocation,'Natural\',files(1).name));
 
                 [s1, s2, s3] = size(theImageSample);
                 [s4, s5, s6] = size(theImageSample);
@@ -301,16 +312,16 @@ end
                     box2=round(center(2)-y_fp-(window_fix/2));
                     box3=round(center(1)+x_fp+(window_fix/2));
                     box4=round(center(2)-y_fp+(window_fix/2));
-                    boximgb1= round(center(1)+300-(window_fix/2));
-                    boximgb2=round(center(2)-(window_fix/2));
-                    boximgb3=round(center(1)+300+(window_fix/2));
-                    boximgb4=round(center(2)+(window_fix/2));
+                    boximgb1= round(centerright(1)-(imgR));
+                    boximgb2=round(centerright(2)-(imgR));
+                    boximgb3=round(centerright(1)+(imgR));
+                    boximgb4=round(centerright(2)+(imgR));
 
 
-                    boximga1= round(center(1)-300-(window_fix/2));
-                    boximga2=round(center(2)-(window_fix/2));
-                    boximga3=round(center(1)-300+(window_fix/2));
-                    boximga4=round(center(2)+(window_fix/2));
+                    boximga1= round(centerleft(1)-(imgR));
+                    boximga2=round(centerleft(2)-(imgR));
+                    boximga3=round(centerleft(1)+(imgR));
+                    boximga4=round(centerleft(2)+(imgR));
 
                 end
                 %Check recording status, stop display if error
@@ -411,33 +422,112 @@ end
                 checkkeys;
             case 'put_on_image'
                 disp('put on image')
-                Results.img(trial_total)=randi([1,cfg.totalImage]);
-                Results.positionImg(trial_total)=BlockArr(2,trial_success);
+                Results.img(trial_total)=randi([1,size(files,1)]);
+                Results.positionImg(trial_total)=BlockArr(1,trial_success);
+                Results.onsetImg(trial_total)=BlockArr(2,trial_success)/1000;
                 trial_attemp=trial_attemp+1;
                 Results.TrialAttemp(trial_total)=1;
-                theImage1 = imread(strcat(theImageLocation,'Natural\Image',num2str(Results.img(trial_total)),'.jpg'));
+                theImage1 = imread(strcat(theImageLocation,'Natural\',files(Results.img(trial_total)).name));
 
-                theImage2 = imread(strcat(theImageLocation,'texture\Image',num2str(Results.img(trial_total)),'.jpg'));
+                theImage2 = imread(strcat(theImageLocation,'Texture\',files(Results.img(trial_total)).name));
 
 
                 imageTexture1 = Screen('MakeTexture', window, theImage1);
                 imageTexture2 = Screen('MakeTexture', window, theImage2);
 
 
-               
+
                 % draw fixation point, update time
                 Screen('FillRect',window, el.backgroundcolour);
-                if Results.positionImg(trial_total) ==1
-                    Screen('DrawTexture', window, imageTexture1, [], leftRect, 0);
-                    Screen('DrawTexture', window, imageTexture2, [], rightRect, 0);
-                else
-                    Screen('DrawTexture', window, imageTexture1, [], rightRect, 0);
-                    Screen('DrawTexture', window, imageTexture2, [], leftRect, 0);
+                if Results.positionImg(trial_total) ==0
+                    %N N left
+                    if  Results.onsetImg(trial_total)<0
+                        Screen('DrawTexture', window, imageTexture1, [], leftRect, 0);
+                        t_checkpoint=Screen('Flip', window);
+%                         Screen('DrawTexture', window, imageTexture1, [], leftRect, 0);
+% 
+%                         Screen('DrawTexture', window, imageTexture1, [], rightRect, 0);
+%                         t_checkpoint=Screen('Flip',window,t_checkpoint+ abs(Results.onsetImg(trial_total)));
+                    elseif Results.onsetImg(trial_total)==0
+                        Screen('DrawTexture', window, imageTexture1, [], leftRect, 0);
+
+                        Screen('DrawTexture', window, imageTexture1, [], rightRect, 0);
+                        t_checkpoint=Screen('Flip', window);
+                    elseif Results.onsetImg(trial_total)>0
+                        Screen('DrawTexture', window, imageTexture1, [], rightRect, 0);
+                        t_checkpoint=Screen('Flip', window);
+%                         Screen('DrawTexture', window, imageTexture1, [], leftRect, 0);
+% 
+%                         Screen('DrawTexture', window, imageTexture1, [], rightRect, 0);
+%                         t_checkpoint=Screen('Flip',window,t_checkpoint+ abs(Results.onsetImg(trial_total)));
+                    end
+                elseif Results.positionImg(trial_total) ==1% T T right
+                    if  Results.onsetImg(trial_total)<0
+                        Screen('DrawTexture', window, imageTexture2, [], leftRect, 0);
+                        t_checkpoint=Screen('Flip', window);
+%                         Screen('DrawTexture', window, imageTexture2, [], leftRect, 0);
+% 
+%                         Screen('DrawTexture', window, imageTexture2, [], rightRect, 0);
+%                         t_checkpoint=Screen('Flip',window,t_checkpoint+ abs(Results.onsetImg(trial_total)));
+                    elseif Results.onsetImg(trial_total)==0
+                        Screen('DrawTexture', window, imageTexture2, [], leftRect, 0);
+
+                        Screen('DrawTexture', window, imageTexture2, [], rightRect, 0);
+                        t_checkpoint=Screen('Flip', window);
+                    elseif Results.onsetImg(trial_total)>0
+                        Screen('DrawTexture', window, imageTexture2, [], rightRect, 0);
+                        t_checkpoint=Screen('Flip', window);
+%                         Screen('DrawTexture', window, imageTexture2, [], leftRect, 0);
+% 
+%                         Screen('DrawTexture', window, imageTexture2, [], rightRect, 0);
+%                         t_checkpoint=Screen('Flip',window,t_checkpoint+ abs(Results.onsetImg(trial_total)));
+                    end
+                elseif Results.positionImg(trial_total) ==2% N T left
+                    if  Results.onsetImg(trial_total)<0
+                        Screen('DrawTexture', window, imageTexture1, [], leftRect, 0);
+                        t_checkpoint=Screen('Flip', window);
+%                         Screen('DrawTexture', window, imageTexture1, [], leftRect, 0);
+% 
+%                         Screen('DrawTexture', window, imageTexture2, [], rightRect, 0);
+%                         t_checkpoint=Screen('Flip',window,t_checkpoint+ abs(Results.onsetImg(trial_total)));
+                    elseif Results.onsetImg(trial_total)==0
+                        Screen('DrawTexture', window, imageTexture1, [], leftRect, 0);
+
+                        Screen('DrawTexture', window, imageTexture2, [], rightRect, 0);
+                        t_checkpoint=Screen('Flip', window);
+                    elseif Results.onsetImg(trial_total)>0
+                        Screen('DrawTexture', window, imageTexture2, [], rightRect, 0);
+                        t_checkpoint=Screen('Flip', window);
+%                         Screen('DrawTexture', window, imageTexture1, [], leftRect, 0);
+% 
+%                         Screen('DrawTexture', window, imageTexture2, [], rightRect, 0);
+%                         t_checkpoint=Screen('Flip',window,t_checkpoint+ abs(Results.onsetImg(trial_total)));
+                    end
+                elseif Results.positionImg(trial_total) ==3% T N right
+                    if  Results.onsetImg(trial_total)<0
+                        Screen('DrawTexture', window, imageTexture2, [], leftRect, 0);
+                        t_checkpoint=Screen('Flip', window);
+%                         Screen('DrawTexture', window, imageTexture2, [], leftRect, 0);
+% 
+%                         Screen('DrawTexture', window, imageTexture1, [], rightRect, 0);
+%                         t_checkpoint=Screen('Flip',window,t_checkpoint+ abs(Results.onsetImg(trial_total)));
+                    elseif Results.onsetImg(trial_total)==0
+                        Screen('DrawTexture', window, imageTexture2, [], leftRect, 0);
+
+                        Screen('DrawTexture', window, imageTexture1, [], rightRect, 0);
+                        t_checkpoint=Screen('Flip', window);
+                    elseif Results.onsetImg(trial_total)>0
+                        Screen('DrawTexture', window, imageTexture1, [], rightRect, 0);
+                        t_checkpoint=Screen('Flip', window);
+%                         Screen('DrawTexture', window, imageTexture2, [], leftRect, 0);
+% 
+%                         Screen('DrawTexture', window, imageTexture1, [], rightRect, 0);
+%                         t_checkpoint=Screen('Flip',window,t_checkpoint+ abs(Results.onsetImg(trial_total)));
+                    end
                 end
 
-                t_checkpoint=Screen('Flip',window);
 
-                Results.PutOnImg(trial_total)=t_checkpoint;
+                Results.PutOnImg1(trial_total)=t_checkpoint;
 
                 % check key press
                 checkkeys;
@@ -445,7 +535,89 @@ end
             case 'WaitChoice'
 
 
-disp('WaitChoice')
+
+
+                % check eye position
+                if Eyelink('NewFloatSampleAvailable') > 0
+                    evt=Eyelink('NewestFloatSample');
+                    x_eye=evt.gx(eye_used+1);
+                    y_eye=evt.gy(eye_used+1);
+                end
+                % if eye position is not in the box, start a new trial with
+                % new fixation point, update time, if eye is in the box and
+                % hold for the amount of the time, go to reward stage
+                if ((x_eye >= (boximga1))&&(x_eye <= (boximga3))&&(y_eye >= (boximga2))&&(y_eye <= (boximga4))&&Results.onsetImg(trial_total)<=0)
+                    t_checkpoint=GetSecs;
+                    Results.choice(trial_total)=1;
+                    Results.choiceTime(trial_total)=t_checkpoint;
+                    disp('HoldChoiceleft')
+                    stage='holdChoice';
+                elseif ((x_eye >= (boximgb1))&&(x_eye <= (boximgb3))&&(y_eye >= (boximgb2))&&(y_eye <= (boximgb4))&&Results.onsetImg(trial_total)>=0)
+                    t_checkpoint=GetSecs;
+                    Results.choice(trial_total)=2;
+               Results.choiceTime(trial_total)=t_checkpoint;
+
+                    disp('HoldChoiceright')
+                    stage='holdChoice';
+                elseif GetSecs-t_checkpoint>=abs(Results.onsetImg(trial_total))
+                    stage='put_on_image_2';
+                elseif GetSecs-t_checkpoint>=cfg.t_waitfixation_img
+                    currentBlock=floor(trial_success/nCondition)+1;
+                    shuffPlace=randi([trial_success,currentBlock*nCondition]);
+                    tempPosition=BlockArr(1,trial_success);
+                    tempblock=BlockArr(2,trial_success);
+                    BlockArr(1,trial_success)=BlockArr(1,shuffPlace);
+                    BlockArr(2,trial_success)=BlockArr(2,shuffPlace);
+                    BlockArr(1,shuffPlace)=tempPosition;
+                    BlockArr(2,shuffPlace)=tempblock;
+                    stage='inter_trial_interval';
+
+                end
+                % check if key is pressed
+                checkkeys;
+            case 'put_on_image_2'
+
+                 % draw fixation point, update time
+                Screen('FillRect',window, el.backgroundcolour);
+                if Results.positionImg(trial_total) ==0
+                    %N N left
+                        Screen('DrawTexture', window, imageTexture1, [], leftRect, 0);
+                                                 Screen('DrawTexture', window, imageTexture1, [], rightRect, 0);
+
+                        t_checkpoint=Screen('Flip', window);
+%                         Screen('DrawTexture', window, imageTexture1, [], leftRect, 0);
+% 
+%                         Screen('DrawTexture', window, imageTexture1, [], rightRect, 0);
+%                         t_checkpoint=Screen('Flip',window,t_checkpoint+ abs(Results.onsetImg(trial_total)));
+                     
+                    
+                elseif Results.positionImg(trial_total) ==1% T T right
+                    
+                        Screen('DrawTexture', window, imageTexture2, [], leftRect, 0);
+
+                        Screen('DrawTexture', window, imageTexture2, [], rightRect, 0);
+                        t_checkpoint=Screen('Flip', window);
+                    
+                elseif Results.positionImg(trial_total) ==2% N T left
+                   
+                       
+                        Screen('DrawTexture', window, imageTexture1, [], leftRect, 0);
+
+                        Screen('DrawTexture', window, imageTexture2, [], rightRect, 0);
+                        t_checkpoint=Screen('Flip',window);
+                   
+                elseif Results.positionImg(trial_total) ==3% T N right
+                        
+                        Screen('DrawTexture', window, imageTexture2, [], leftRect, 0);
+
+                        Screen('DrawTexture', window, imageTexture1, [], rightRect, 0);
+                        t_checkpoint=Screen('Flip',window);
+                    
+                end
+                                Results.PutOnImg2(trial_total)=t_checkpoint;
+
+                stage='WaitChoice_2';
+            case 'WaitChoice_2'
 
                 % check eye position
                 if Eyelink('NewFloatSampleAvailable') > 0
@@ -459,26 +631,26 @@ disp('WaitChoice')
                 if ((x_eye >= (boximga1))&&(x_eye <= (boximga3))&&(y_eye >= (boximga2))&&(y_eye <= (boximga4)))
                     t_checkpoint=GetSecs;
                     Results.choice(trial_total)=1;
-                    disp('HoldChoice')
+                    Results.choiceTime(trial_total)=t_checkpoint;
+                    disp('HoldChoiceleft')
                     stage='holdChoice';
                 elseif ((x_eye >= (boximgb1))&&(x_eye <= (boximgb3))&&(y_eye >= (boximgb2))&&(y_eye <= (boximgb4)))
                     t_checkpoint=GetSecs;
                     Results.choice(trial_total)=2;
-                    disp('HoldChoice')
+               Results.choiceTime(trial_total)=t_checkpoint;
 
+                    disp('HoldChoiceright')
                     stage='holdChoice';
+               
                 elseif GetSecs-t_checkpoint>=cfg.t_waitfixation_img
-                    currentBlock=floor(trial_success/cfg.blockSize)+1;
-                    shuffPlace=randi([trial_success,currentBlock*cfg.blockSize]);
-                    tempPosition=position(trial_success);
-                    tempblock=block(trial_success);
-                    tempimageNumber=imageNumber(trial_success);
-                    position(trial_success)=position(shuffPlace);
-                    block(trial_success)=block(shuffPlace);
-                    imageNumber(trial_success)=imageNumber(shuffPlace);
-                    position(shuffPlace)=tempPosition;
-                    block(shuffPlace)=tempblock;
-                    imageNumber(shuffPlace)=tempimageNumber;
+                    currentBlock=floor(trial_success/nCondition)+1;
+                    shuffPlace=randi([trial_success,currentBlock*nCondition]);
+                    tempPosition=BlockArr(1,trial_success);
+                    tempblock=BlockArr(2,trial_success);
+                    BlockArr(1,trial_success)=BlockArr(1,shuffPlace);
+                    BlockArr(2,trial_success)=BlockArr(2,shuffPlace);
+                    BlockArr(1,shuffPlace)=tempPosition;
+                    BlockArr(2,shuffPlace)=tempblock;
                     stage='inter_trial_interval';
 
                 end
@@ -489,138 +661,74 @@ disp('WaitChoice')
 
 
 
-
-
-                if Results.choice(trial_total)==1
-                    Results.rewardChance(trial_total)=block(1,trial_success);
-                    if not((x_eye >= (boximga1))&&(x_eye <= (boximga3))&&(y_eye >= (boximga2))&&(y_eye <= (boximga4)))
-                        t_checkpoint=GetSecs;
-                        currentBlock=floor(trial_success/cfg.blockSize)+1;
-                        shuffPlace=randi([trial_success,currentBlock*cfg.blockSize]);
-                        tempPosition=position(trial_success);
-                        tempblock=block(trial_success);
-                        tempimageNumber=imageNumber(trial_success);
-                        position(trial_success)=position(shuffPlace);
-                        block(trial_success)=block(shuffPlace);
-                        imageNumber(trial_success)=imageNumber(shuffPlace);
-                        position(shuffPlace)=tempPosition;
-                        block(shuffPlace)=tempblock;
-                        imageNumber(shuffPlace)=tempimageNumber;
-                        stage='inter_trial_interval';
-                    elseif GetSecs-t_checkpoint>=cfg.t_fixation_img
-                        % eyelink, matlab message, hold comp fp
-                        Results.HoldCompIMG(trial_total)=GetSecs;
-                        %                     Eyelink('Message', 'HoldCompFPWSP');
-                        %                     disp('HoldCompFP With SP')
-                        stage='Result';
-                    end
-                elseif Results.choice(trial_total)==2
-                    Results.rewardChance(trial_total)=block(2,trial_success);
-                    if not((x_eye >= (boximgb1))&&(x_eye <= (boximgb3))&&(y_eye >= (boximgb2))&&(y_eye <= (boximgb4)))
-                        t_checkpoint=GetSecs;
-                        currentBlock=floor(trial_success/cfg.blockSize)+1;
-                        shuffPlace=randi([trial_success,currentBlock*cfg.blockSize]);
-                        tempPosition=position(trial_success);
-                        tempblock=block(trial_success);
-                        tempimageNumber=imageNumber(trial_success);
-                        position(trial_success)=position(shuffPlace);
-                        block(trial_success)=block(shuffPlace);
-                        imageNumber(trial_success)=imageNumber(shuffPlace);
-                        position(shuffPlace)=tempPosition;
-                        block(shuffPlace)=tempblock;
-                        imageNumber(shuffPlace)=tempimageNumber;
-                        stage='inter_trial_interval';
-                    elseif GetSecs-t_checkpoint>=cfg.t_fixation_img
-                        % eyelink, matlab message, hold comp fp
-                        Results.HoldCompIMG(trial_total)=GetSecs;
-                        %                     Eyelink('Message', 'HoldCompFPWSP');
-                        %                     disp('HoldCompFP With SP')
-                        stage='Result';
-                    end
-                end
-
-
-                checkkeys;
-            case 'Result'
-
-                if Results.positionImg(trial_total) ==1
-                    Screen('DrawTexture', window, imageTexture1, [], leftRect, 0);
-                    Screen('DrawTexture', window, imageTexture2, [], rightRect, 0);
-                else
-                    Screen('DrawTexture', window, imageTexture1, [], rightRect, 0);
-                    Screen('DrawTexture', window, imageTexture2, [], leftRect, 0);
-                end
-                if Results.choice(trial_total)==1
-                    Screen('FrameOval', window, [255 0 0], leftRect, 10); % adjust color and thickness as desired
-                elseif Results.choice(trial_total)==2
-                    Screen('FrameOval', window, [255 0 0], rightRect, 10); % adjust color and thickness as desired
-                end
-                t_checkpoint=Screen('Flip',window);
-
-                stage='HoldResults';
-            case 'HoldResults'
-                % get eye position
                 if Eyelink('NewFloatSampleAvailable') > 0
                     evt=Eyelink('NewestFloatSample');
                     x_eye=evt.gx(eye_used+1);
                     y_eye=evt.gy(eye_used+1);
                 end
 
-                % check whether eye is in the fixation window, if yes, set
-                % stage to next wait for hold stage and update time;
-                % if not, return to the trial start stage with previous
-                % fixation point position
                 if Results.choice(trial_total)==1
                     if not((x_eye >= (boximga1))&&(x_eye <= (boximga3))&&(y_eye >= (boximga2))&&(y_eye <= (boximga4)))
-                        t_checkpoint=GetSecs;
-
+                        disp('FT')
                         stage='ForcedTrial_fp';
-                    elseif GetSecs-t_checkpoint>=cfg.t_fixation_result
+                    elseif GetSecs-t_checkpoint>=cfg.t_fixation_img
                         % eyelink, matlab message, hold comp fp
-                        Results.HoldResult(trial_total)=GetSecs;
+                        Results.HoldCompIMG(trial_total)=GetSecs;
                         %                     Eyelink('Message', 'HoldCompFPWSP');
                         %                     disp('HoldCompFP With SP')
                         stage='reward';
                     end
                 elseif Results.choice(trial_total)==2
                     if not((x_eye >= (boximgb1))&&(x_eye <= (boximgb3))&&(y_eye >= (boximgb2))&&(y_eye <= (boximgb4)))
-                        t_checkpoint=GetSecs;
 
                         stage='ForcedTrial_fp';
-                    elseif GetSecs-t_checkpoint>=cfg.t_fixation_result
+                    elseif GetSecs-t_checkpoint>=cfg.t_fixation_img
                         % eyelink, matlab message, hold comp fp
-                        Results.HoldResult(trial_total)=GetSecs;
-                        stage='reward';
-
+                        Results.HoldCompIMG(trial_total)=GetSecs;
                         %                     Eyelink('Message', 'HoldCompFPWSP');
+                        %                     disp('HoldCompFP With SP')
+                        stage='reward';
                     end
-
                 end
 
 
-                % check if key is pressed
                 checkkeys;
 
-            case 'reward'
 
+            case 'reward'
+if cfg.randreward
+                    if rand>=cfg.randper
+                        cclabReward(cfg.reward*1.5, 1, IRI);
+                        % Eyelink matlab message, reward and reward amount
+                        Eyelink( 'Message', 'Reward %d,trial %d', cfg.reward*1.5,trial_total);
+                        fprintf('reward amount %d,trial %d \n',cfg.reward*1.5,trial_total)
+                        Results.RewardAmount(trial_total)=cfg.reward*2;
+                        Results.RewardTime(trial_total)=GetSecs;
+
+
+                    else
+                        % Eyelink matlab message, reward and reward amount
+                        Eyelink( 'Message', 'Reward %d, trial %d', cfg.reward,trial_total);
+                        Results.RewardAmount(trial_total)=cfg.reward;
+                        fprintf('reward amount %d,trial %d \n',cfg.reward,trial_total)
+                        Results.RewardTime(trial_total)=GetSecs;
+
+
+
+                    end
+                else
                 % matlab message reward and number of success trial
                 % Give reward, if random reward is enabled and random
                 % number is above threshold, give doble reward
-                if rand<=Results.rewardChance(trial_total)
-                    cclabReward(3*cfg.reward, 1, IRI);
-                    Eyelink( 'Message', 'Reward %d,trial %d', 3*cfg.reward,trial_total);
-                    Results.RewardAmount(trial_total)=3*cfg.reward;
-                    fprintf('reward amount %d,trial %d \n',3*cfg.reward,trial_total);
-                    Results.RewardTime(trial_total)=GetSecs;
+                cclabReward(cfg.reward, 1, IRI);
+                Eyelink( 'Message', 'Reward %d,trial %d', cfg.reward,trial_total);
+                Results.RewardAmount(trial_total)=cfg.reward;
+                fprintf('reward amount %d,trial %d \n',cfg.reward,trial_total);
+                                fprintf('Success trial %d \n',trial_total);
 
-                else
-                    cclabReward(cfg.reward, 1, IRI);
-                    Eyelink( 'Message', 'Reward %d,trial %d', cfg.reward,trial_total);
-                    Results.RewardAmount(trial_total)=cfg.reward;
-                    fprintf('reward amount %d,trial %d \n',cfg.reward,trial_total);
-                    Results.RewardTime(trial_total)=GetSecs;
+                Results.RewardTime(trial_total)=GetSecs;
+end
 
-                end
 
 
                 % update time and success trial count
@@ -660,9 +768,12 @@ disp('WaitChoice')
                 Screen('FillOval',window,fp_color, [center(1)-fpr+x_fp, center(2)-fpr-y_fp, center(1)+fpr+x_fp, center(2)+fpr-y_fp],5);
                 t_checkpoint=Screen('Flip',window);
                 % check if key is pressed
-                checkkeys;
 
-                % update stage
+                checkkeys;
+Results.FTFPON(trial_total)=t_checkpoint;
+% update stage
+                                checkkeys;
+
                 stage='ForcedTrial_waitfix';
             case 'ForcedTrial_waitfix'
 
@@ -683,8 +794,11 @@ disp('WaitChoice')
                 elseif GetSecs-t_checkpoint>=cfg.t_waitfixation_FTfp
                     stage='ForcedTrial_fp';
                 end
+                                checkkeys;
+
             case 'ForcedTrial_holdFP'
                 % check eye position
+
                 if Eyelink('NewFloatSampleAvailable') > 0
                     evt=Eyelink('NewestFloatSample');
 
@@ -705,15 +819,18 @@ disp('WaitChoice')
                     %                     fprintf('Hold Comp FP without SP %d',trial_total)
                     stage='ForcedTrial_put_on_image';
                 end
+                                checkkeys;
+
             case 'ForcedTrial_put_on_image'
+
                 if Results.choice(trial_total)==1
-                    if Results.positionImg(trial_total)==1
+                    if Results.positionImg(trial_total)==0 || Results.positionImg(trial_total)==2
                         Screen('DrawTexture', window, imageTexture1, [], leftRect, 0);
                     else
                         Screen('DrawTexture', window, imageTexture2, [], leftRect, 0);
                     end
                 else
-                    if Results.positionImg(trial_total)==1
+                    if Results.positionImg(trial_total)==1 || Results.positionImg(trial_total)==2
                         Screen('DrawTexture', window, imageTexture2, [], rightRect, 0);
                     else
                         Screen('DrawTexture', window, imageTexture1, [], rightRect, 0);
@@ -727,6 +844,7 @@ disp('WaitChoice')
                 stage='ForcedTrial_WaitChoice';
 
             case 'ForcedTrial_WaitChoice'
+
                 % check eye position
                 if Eyelink('NewFloatSampleAvailable') > 0
                     evt=Eyelink('NewestFloatSample');
@@ -736,14 +854,16 @@ disp('WaitChoice')
                 % if eye position is not in the box, start a new trial with
                 % new fixation point, update time, if eye is in the box and
                 % hold for the amount of the time, go to reward stage
-                if ((x_eye >= (boximga1))&&(x_eye <= (boximga3))&&(y_eye >= (boximga2))&&(y_eye <= (boximga4)))
+                if ((x_eye >= (boximga1))&&(x_eye <= (boximga3))&&(y_eye >= (boximga2))&&(y_eye <= (boximga4)) &&Results.choice(trial_total)==1)
                     t_checkpoint=GetSecs;
+                    Results.FTImageIn(trial_total)=t_checkpoint;
                     stage='ForcedTrialholdChoice';
-                elseif ((x_eye >= (boximgb1))&&(x_eye <= (boximgb3))&&(y_eye >= (boximgb2))&&(y_eye <= (boximgb4)))
+                elseif ((x_eye >= (boximgb1))&&(x_eye <= (boximgb3))&&(y_eye >= (boximgb2))&&(y_eye <= (boximgb4))&&Results.choice(trial_total)==2)
                     t_checkpoint=GetSecs;
+                    Results.FTImageIn(trial_total)=t_checkpoint;
 
                     stage='ForcedTrialholdChoice';
-                else
+                elseif GetSecs-t_checkpoint>=cfg.t_waitfixation_fp
                     stage='ForcedTrial_fp';
 
                 end
@@ -755,7 +875,11 @@ disp('WaitChoice')
 
 
 
-
+                if Eyelink('NewFloatSampleAvailable') > 0
+                    evt=Eyelink('NewestFloatSample');
+                    x_eye=evt.gx(eye_used+1);
+                    y_eye=evt.gy(eye_used+1);
+                end
                 if Results.choice(trial_total)==1
                     if not((x_eye >= (boximga1))&&(x_eye <= (boximga3))&&(y_eye >= (boximga2))&&(y_eye <= (boximga4)))
                         t_checkpoint=GetSecs;
@@ -763,10 +887,10 @@ disp('WaitChoice')
                         stage='ForcedTrial_fp';
                     elseif GetSecs-t_checkpoint>=cfg.t_fixation_result
                         % eyelink, matlab message, hold comp fp
-                        Results.HoldCompFPWSP(trial_total)=GetSecs;
+                        Results.HoldCompFTIMG(trial_total)=GetSecs;
                         %                     Eyelink('Message', 'HoldCompFPWSP');
                         %                     disp('HoldCompFP With SP')
-                        stage='ForcedTrialResult';
+                        stage='reward';
                     end
                 elseif Results.choice(trial_total)==2
                     if not((x_eye >= (boximgb1))&&(x_eye <= (boximgb3))&&(y_eye >= (boximgb2))&&(y_eye <= (boximgb4)))
@@ -775,39 +899,17 @@ disp('WaitChoice')
                         stage='ForcedTrial_fp';
                     elseif GetSecs-t_checkpoint>=cfg.t_fixation_sp
                         % eyelink, matlab message, hold comp fp
-                        Results.HoldCompFPWSP(trial_total)=GetSecs;
+                        Results.HoldCompFTIMG(trial_total)=GetSecs;
                         %                     Eyelink('Message', 'HoldCompFPWSP');
                         %                     disp('HoldCompFP With SP')
-                        stage='ForcedTrialResult';
+                        stage='reward';
                     end
                 end
-
-            case 'ForcedTrialResult'
-                if rand<=Results.rewardChance(trial_total)
-                    cclabReward(3*cfg.reward, 1, IRI);
-                    Eyelink( 'Message', 'Reward %d,trial %d', 3*cfg.reward,trial_total);
-                    Results.RewardAmount(trial_total)=3*cfg.reward;
-                    fprintf('reward amount %d,trial %d \n',3*cfg.reward,trial_total);
-                    Results.RewardTime(trial_total)=GetSecs;
-
-                else
-                    cclabReward(cfg.reward, 1, IRI);
-                    Eyelink( 'Message', 'Reward %d,trial %d', cfg.reward,trial_total);
-                    Results.RewardAmount(trial_total)=cfg.reward;
-                    fprintf('reward amount %d,trial %d \n',cfg.reward,trial_total);
-                    Results.RewardTime(trial_total)=GetSecs;
-
-                end
+                                checkkeys;
 
 
-                % update time and success trial count
-                t_checkpoint=GetSecs;
-                trial_success=trial_success+1;
-                Results.Reward(trial_total)=1;
-                Results.TrialSuccess(trial_total)=1;
-                % Go to inter trial interval
-                stage='inter_trial_interval';
-                checkkeys;
+
+
 
 
             case 'exp_end'
@@ -867,7 +969,7 @@ disp('WaitChoice')
                 % when check keys, if up is pressed, go to pause state
             case 'pause'
                 % fill grey screen, check for other key pressed
-                Screen('FillRect',window, el.backgroundcolour);
+                Screen('FillRect',window, [0 0 1]);
                 Screen('Flip',window);
                 checkkeys;
                 %if down key is pressed, return to trial start stage

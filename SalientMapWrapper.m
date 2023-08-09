@@ -2,7 +2,7 @@ clear
 close all
 warning('off')
 cfg.sub='Vennie';
-cfg.windowSize=1.4;
+cfg.windowSize=3;
 cfg.ScreenNumber=1;
 cfg.t_waitfixation_fp=2;
 cfg.t_waitfixation_sp=2;
@@ -16,17 +16,17 @@ cfg.ip_x=0;
 cfg.ip_y=0;
 cfg.fp_x=0;
 cfg.fp_y=0;
-cfg.fpr=0.2;
+cfg.fpr=0.5;
 cfg.spr=0.2;
-cfg.imgR=2;
-cfg.imgPos=8;
-cfg.reward=100;
+cfg.imgR=3;
+cfg.imgPos=5;
+cfg.reward=150;
 cfg.t_trialend=1;
 cfg.sp_x=[0];
 cfg.sp_y=[0];
 cfg.polar=true;
 cfg.degree=deg2rad([0,45,90,135,180,225,270,315,360]);
-cfg.radius=5;
+cfg.radius=1.2;
 cfg.randreward=true;
 cfg.randper=0.8;
 cfg.contrast=18;
@@ -45,4 +45,10 @@ cfg.t_fixation_sp=0.5;
 cfg.randreward=true;
 cfg.randper=0.2;
 %VGSaccade;
-
+cfg.squareSize=2.5;
+cfg.t_hold_fixation_fp=0.5;
+cfg.popout=true;
+cfg.Natural=true;
+cfg.setLocation=true;
+cfg.LocationX=4;
+cfg.LocationY=2;

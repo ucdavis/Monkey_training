@@ -3,7 +3,7 @@ close all
 warning('off')
 cfg.sub='Vennie';
  cfg.windowSize=1.8;
- cfg.spwindowSize=5;
+ cfg.spwindowSize=3.5;
 % cfg.windowSize=10;
 % cfg.spwindowSize=10;
 cfg.ScreenNumber=1;
@@ -30,13 +30,19 @@ cfg.degree=deg2rad(0:45:360);
 cfg.radius=7;% saccade distance from center (in X * ppd)
 cfg.randreward=true;
 cfg.randper=0.8;
-cfg.contrast=0;
+cfg.contrast=18;
 cfg.contrasttarget=1000;
 figure;
                         set(gcf,'Position',[0 550 560 420]);
 cfg.soa=[-800 -600 -400 -200 0 200 400 600 800];
+cfg.totalImage=50;
+cfg.t_waitfixation_img=2;
+cfg.t_fixation_img=0.5;
+cfg.t_fixation_FTfp=0.5;
+cfg.t_waitfixation_FTfp=2;
+cfg.t_fixation_result=0.5;
+cfg.t_fixation_sp=0.5;
 cfg.Skip=true;
 cfg.SkipTrialNum=10;
-cfg.prob=[0.25 0.5 0.75 1];
 %VGSaccade;
 

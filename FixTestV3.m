@@ -10,7 +10,7 @@ try
 %     addpath('E:\Eyelink_test_ground_Wenqing');
     % Set pathway
     currDate = strrep(datestr(datetime("today")), ':', '_');
-    path = strcat('D:\EyelinkData\',cfg.sub,'\',currDate,'\'); % where to keep the edf files
+    path = strcat('D:\EyelinkData\','Fixation\',cfg.sub,'\',currDate,'\'); % where to keep the edf files
 
     % check if foloooder exists, if not, create it
     if isfolder(path)
@@ -195,7 +195,7 @@ try
     % set calibration/validation/drift-check(or drift-correct) size as well as background and target colors.
     % It is important that this background colour is similar to that of the stimuli to prevent large luminance-based
     % pupil size changes (which can cause a drift in the eye movement data)
-    el.calibrationtargetsize = 5;% Outer target size as percentage of the screen
+    el.calibrationtargetsize = 0.5;% Outer target size as percentage of the screen
     el.calibrationtargetwidth = 0;% Inner target size as percentage of the screen
     el.backgroundcolour = [128 128 128];% RGB grey
     el.calibrationtargetcolour = [0 0 1];% RGB black

@@ -272,14 +272,16 @@ try
         idx = randperm(length(entries));
         entries_shuff = entries(idx);
 
-        onesIdx = entries_shuff == 1;
-        twosIdx = entries_shuff == 2;
+%         onesIdx = entries_shuff == 1;
+%         twosIdx = entries_shuff == 2;
         outputVec = NaN(2, numel(entries_shuff));
-        outputVec(1, onesIdx) = repmat(shuffledCombinations(i,1), 1, sum(onesIdx));
-        outputVec(1, twosIdx) = repmat(shuffledCombinations(i,2), 1, sum(twosIdx));
-        outputVec(2, onesIdx) = repmat(shuffledCombinations(i,2), 1, sum(onesIdx));
+       outputVec(1, :) = repmat(shuffledCombinations(i,1), 1, cfg.blockSize);
+              outputVec(2, :) = repmat(shuffledCombinations(i,2), 1, cfg.blockSize);
 
-        outputVec(2, twosIdx) = repmat(shuffledCombinations(i,1), 1, sum(twosIdx));
+%         outputVec(1, twosIdx) = repmat(shuffledCombinations(i,2), 1, sum(twosIdx));
+%         outputVec(2, onesIdx) = repmat(shuffledCombinations(i,2), 1, sum(onesIdx));
+% 
+%         outputVec(2, twosIdx) = repmat(shuffledCombinations(i,1), 1, sum(twosIdx));
         %         imageOrder=[1:cfg.blockSize];
         %         idx_image=randperm(length(imageOrder));
         %         img_shuff = imageOrder(idx_image);
@@ -363,13 +365,7 @@ try
                     boximga4=round(centerleft(2)+(imgR));
 
                 end
-                %Check recording status, stop display if error
-
-
-                %                 % draw background
-                %                 Screen('FillRect',window, el.backgroundcolour);
-                %                 Screen('DrawingFinished',window);
-                %                 Screen('Flip',window);
+               
 
                 % draw fixation point, update time
                 Screen('FillRect',window, el.backgroundcolour);
@@ -696,9 +692,9 @@ try
                 if Results.rewardGrant(trial_total)==1
 
                     cclabReward(2*cfg.reward, 1, IRI);
-                    Eyelink( 'Message', 'Reward %d,trial %d', 3*cfg.reward,trial_total);
-                    Results.RewardAmount(trial_total)=3*cfg.reward;
-                    fprintf('reward amount %d,trial %d \n',3*cfg.reward,trial_total);
+                    Eyelink( 'Message', 'Reward %d,trial %d', 2*cfg.reward,trial_total);
+                    Results.RewardAmount(trial_total)=2*cfg.reward;
+                    fprintf('reward amount %d,trial %d \n',2*cfg.reward,trial_total);
                     Results.RewardTime(trial_total)=GetSecs;
                 else
                     cclabReward(cfg.reward, 1, IRI);
@@ -1044,6 +1040,7 @@ catch exception
     save(append(edfFile,st2))
     Screen('CloseAll');
     ListenChar(1);
+
     Eyelink('ShutDown');
     % Restores the mouse cursor.
     ShowCursor;
