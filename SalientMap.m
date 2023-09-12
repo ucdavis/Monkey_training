@@ -16,7 +16,7 @@ try
 
     currDate = string(datetime("today"));
     path = strcat('D:\EyelinkData\','SalientMap\',cfg.sub,'\',currDate,'\'); % where to keep the edf files
-        theImageLocation='D:\Wenqing\Foraging\';
+    theImageLocation='D:\Wenqing\Foraging\';
 
     % check if folder exists, if not, create it
     if isfolder(path)
@@ -277,8 +277,21 @@ try
     SquareOrderX=[];
     SquareOrderY=[];
     files=dir('D:\Wenqing\Foraging\Texture\Image*.bmp');
+    condition=repmat([1:10],1,100);
+    ImgNum=repmat([1:100],1,10);
+    CondiImg=[condition; ImgNum];
+    % Step 1: Shuffle the array randomly
+    shuffledArray = CondiImg(:,randperm(length(ImgNum)));
 
-
+    % Step 2: Ensure adjacent numbers are not identical
+    for i = 2:length(shuffledArray)
+        if shuffledArray(2,i) == shuffledArray(2,i - 1)
+            % Swap the current element with the next element
+            temp = shuffledArray(:,i);
+            shuffledArray(:,i) = shuffledArray(:,i + 1);
+            shuffledArray(:,i + 1) = temp;
+        end
+    end
     % squares=[width/squareWidthDeg-cfg.squareSize*ppd height/squareHeightDeg-cfg.squareSize*ppd width/squareWidthDeg+cfg.squareSize*ppd height/squareHeightDeg+cfg.squareSize*ppd;
     %     3*width/squareWidthDeg-cfg.squareSize*ppd height/squareHeightDeg-cfg.squareSize*ppd 3*width/squareWidthDeg+cfg.squareSize*ppd height/squareHeightDeg+cfg.squareSize*ppd
     %     3*width/squareWidthDeg-cfg.squareSize*ppd 3*height/squareHeightDeg-cfg.squareSize*ppd 3*width/squareWidthDeg+cfg.squareSize*ppd 3*height/squareHeightDeg+cfg.squareSize*ppd
@@ -361,6 +374,8 @@ try
                 t_checkpoint=Screen('Flip',window);
 
                 disp('put on fp')
+                Eyelink('Message','put on Fix %d',trial_total);
+                Results.PutOnFix(trial_total)=t_checkpoint;
                 % draw box on eyelink machine, representing window of
                 % accepted eye position
                 Eyelink('command','clear_screen %d', 0);
@@ -390,7 +405,9 @@ try
                 % fixation point position
                 if ((x_eye >=box1)&&(x_eye <= box3)&&(y_eye >= (box2))&&(y_eye <=box4))
                     t_checkpoint=GetSecs;
-                    Results.FixOnFP(trial_total)=GetSecs;
+                    Results.FixInFP(trial_total)=GetSecs;
+                    Eyelink('Message','Fix In FP %d',trial_total);
+
                     % Eyelink Matlab Message, fix in fp
                     disp('wait hold fp')
                     stage='wait_for_hold_fp';
@@ -434,16 +451,16 @@ try
                     stage='inter_trial_interval';
                 elseif GetSecs-t_checkpoint>=cfg.t_fixation_fp
                     % Eyelink matlab message, Hold comp fp
-                    Results.HoldCompFP(trial_total)=GetSecs;
-                    %                     Eyelink('Message','HoldCompFPWOSP %d',trial_total);
-                    %                     fprintf('Hold Comp FP without SP %d',trial_total)
+                    Results.HoldFix(trial_total)=GetSecs;
+                    Eyelink('Message','HoldFix %d',trial_total);
+
                     stage='put_on_image';
                 end
                 % check if key is pressed
                 checkkeys;
             case 'put_on_image'
                 disp('put on image')
-                                Results.img(trial_total)=randi([1,size(files,1)]);
+                Results.img(trial_total)=randi([1,size(files,1)]);
 
                 trial_attemp=trial_attemp+1;
                 Results.TrialAttemp(trial_total)=1;
@@ -453,98 +470,217 @@ try
                 % draw fixation point, update time
 
                 Screen('FillRect',window, el.backgroundcolour);
-                Screen('FillRect', window, [0 255 255], cell2mat(squares(SquareOrderX(trial_success),SquareOrderY(trial_success))));
-              if cfg.setLocation 
-                  SquareOrderX(trial_success)=cfg.LocationX;
-                                    SquareOrderY(trial_success)=cfg.LocationY;
+                %Screen('FillRect', window, [0 255 255], cell2mat(squares(SquareOrderX(trial_success),SquareOrderY(trial_success))));
+                if cfg.setLocation
+                    SquareOrderX(trial_success)=cfg.LocationX;
+                    SquareOrderY(trial_success)=cfg.LocationY;
 
-                if cfg.popout && cfg.Natural
-                    %popout one natural else texture
-                    imgRect=cell2mat(squares(SquareOrderX(trial_success),SquareOrderY(trial_success)));
-                    theImage1 = imread(strcat(theImageLocation,'Natural\',files(Results.img(trial_total)).name));
+                    if condition(trial_success)==1 %popout N in
+                        %popout one natural else texture
+                        imgRect=cell2mat(squares(SquareOrderX(trial_success),SquareOrderY(trial_success)));
+                        theImage1 = imread(strcat(theImageLocation,'Natural\',files(Results.img(trial_total)).name));
 
-                    theImage2 = imread(strcat(theImageLocation,'Texture\',files(Results.img(trial_total)).name));
+                        theImage2 = imread(strcat(theImageLocation,'Texture\',files(Results.img(trial_total)).name));
 
 
-                    imageTexture1 = Screen('MakeTexture', window, theImage1);
-                    imageTexture2 = Screen('MakeTexture', window, theImage2);
-                    for i=1:6
-                        for j=1:4
-                            tempRect=cell2mat(squares(i,j));
-                            Screen('DrawTexture', window, imageTexture2, [], tempRect, 0);
+                        imageTexture1 = Screen('MakeTexture', window, theImage1);
+                        imageTexture2 = Screen('MakeTexture', window, theImage2);
+                        for i=1:6
+                            for j=1:4
+                                tempRect=cell2mat(squares(i,j));
+                                Screen('DrawTexture', window, imageTexture2, [], tempRect, 0);
+                            end
                         end
-                    end
 
-                    Screen('DrawTexture', window, imageTexture1, [], imgRect, 0);
-
-
-                    Screen('FillOval',window,fp_color, [center(1)-fpr+x_fp, center(2)-fpr-y_fp, center(1)+fpr+x_fp, center(2)+fpr-y_fp],5);
-                    t_checkpoint=Screen('Flip',window);
-                elseif cfg.popout && cfg.Texture
-                    imgRect=cell2mat(squares(SquareOrderX(trial_success),SquareOrderY(trial_success)));
-                    theImage1 = imread(strcat(theImageLocation,'Natural\',files(Results.img(trial_total)).name));
-
-                    theImage2 = imread(strcat(theImageLocation,'Texture\',files(Results.img(trial_total)).name));
+                        Screen('DrawTexture', window, imageTexture1, [], imgRect, 0);
 
 
-                    imageTexture1 = Screen('MakeTexture', window, theImage1);
-                    imageTexture2 = Screen('MakeTexture', window, theImage2);
-                    for i=1:6
-                        for j=1:4
-                            tempRect=cell2mat(squares(i,j));
-                            Screen('DrawTexture', window, imageTexture1, [], tempRect, 0);
+                        Screen('FillOval',window,fp_color, [center(1)-fpr+x_fp, center(2)-fpr-y_fp, center(1)+fpr+x_fp, center(2)+fpr-y_fp],5);
+                        t_checkpoint=Screen('Flip',window);
+                    elseif condition(trial_success)==2 %popout T in
+                        imgRect=cell2mat(squares(SquareOrderX(trial_success),SquareOrderY(trial_success)));
+                        theImage1 = imread(strcat(theImageLocation,'Natural\',files(Results.img(trial_total)).name));
+
+                        theImage2 = imread(strcat(theImageLocation,'Texture\',files(Results.img(trial_total)).name));
+
+
+                        imageTexture1 = Screen('MakeTexture', window, theImage1);
+                        imageTexture2 = Screen('MakeTexture', window, theImage2);
+                        for i=1:6
+                            for j=1:4
+                                tempRect=cell2mat(squares(i,j));
+                                Screen('DrawTexture', window, imageTexture2, [], tempRect, 0);
+                            end
                         end
-                    end
 
-                    Screen('DrawTexture', window, imageTexture2, [], imgRect, 0);
-
-
-                    Screen('FillOval',window,fp_color, [center(1)-fpr+x_fp, center(2)-fpr-y_fp, center(1)+fpr+x_fp, center(2)+fpr-y_fp],5);
-                    t_checkpoint=Screen('Flip',window);
-                
-              elseif cfg.onebyone & mod(trial_success)==1
-                  imgRect=cell2mat(squares(SquareOrderX(trial_success),SquareOrderY(trial_success)));
-                    theImage1 = imread(strcat(theImageLocation,'Natural\',files(Results.img(trial_total)).name));
-
-                    theImage2 = imread(strcat(theImageLocation,'Texture\',files(Results.img(trial_total)).name));
+                        Screen('DrawTexture', window, imageTexture1, [], imgRect, 0);
 
 
-                    imageTexture1 = Screen('MakeTexture', window, theImage1);
-                    imageTexture2 = Screen('MakeTexture', window, theImage2);
-                    for i=1:6
-                        for j=1:4
-                            tempRect=cell2mat(squares(i,j));
-                            Screen('DrawTexture', window, imageTexture2, [], tempRect, 0);
+                        Screen('FillOval',window,fp_color, [center(1)-fpr+x_fp, center(2)-fpr-y_fp, center(1)+fpr+x_fp, center(2)+fpr-y_fp],5);
+                        t_checkpoint=Screen('Flip',window);
+
+                    elseif condition(trial_success)==3 % Single T in
+                        imgRect=cell2mat(squares(SquareOrderX(trial_success),SquareOrderY(trial_success)));
+                        theImage1 = imread(strcat(theImageLocation,'Natural\',files(Results.img(trial_total)).name));
+
+                        theImage2 = imread(strcat(theImageLocation,'Texture\',files(Results.img(trial_total)).name));
+
+
+                        imageTexture1 = Screen('MakeTexture', window, theImage1);
+                        imageTexture2 = Screen('MakeTexture', window, theImage2);
+                     
+                        tempRect=cell2mat(squares(i,j));
+                        Screen('DrawTexture', window, imageTexture2, [], imgRect, 0);
+
+
+
+
+                        Screen('FillOval',window,fp_color, [center(1)-fpr+x_fp, center(2)-fpr-y_fp, center(1)+fpr+x_fp, center(2)+fpr-y_fp],5);
+                        t_checkpoint=Screen('Flip',window);
+                    elseif  condition(trial_success)==4 % Single T out
+                        imgRect=cell2mat(squares(SquareOrderX(trial_success),SquareOrderY(trial_success)));
+                        imgRectOut=[2*center(1)-imgRect(3) 2*center(2)-imgRect(4) 2*center(1)-imgRect(1) 2*center(2)-imgRect(2)];
+                        theImage1 = imread(strcat(theImageLocation,'Natural\',files(Results.img(trial_total)).name));
+
+                        theImage2 = imread(strcat(theImageLocation,'Texture\',files(Results.img(trial_total)).name));
+
+
+                        imageTexture1 = Screen('MakeTexture', window, theImage1);
+                        imageTexture2 = Screen('MakeTexture', window, theImage2);
+
+
+                        Screen('DrawTexture', window, imageTexture2, [], imgRectOut, 0);
+
+
+                        Screen('FillOval',window,fp_color, [center(1)-fpr+x_fp, center(2)-fpr-y_fp, center(1)+fpr+x_fp, center(2)+fpr-y_fp],5);
+                        t_checkpoint=Screen('Flip',window);
+                    elseif  condition(trial_success)==5 % Single N in
+                        imgRect=cell2mat(squares(SquareOrderX(trial_success),SquareOrderY(trial_success)));
+                        theImage1 = imread(strcat(theImageLocation,'Natural\',files(Results.img(trial_total)).name));
+
+                        theImage2 = imread(strcat(theImageLocation,'Texture\',files(Results.img(trial_total)).name));
+
+
+                        imageTexture1 = Screen('MakeTexture', window, theImage1);
+                        imageTexture2 = Screen('MakeTexture', window, theImage2);
+
+
+                        Screen('DrawTexture', window, imageTexture1, [], imgRect, 0);
+
+
+                        Screen('FillOval',window,fp_color, [center(1)-fpr+x_fp, center(2)-fpr-y_fp, center(1)+fpr+x_fp, center(2)+fpr-y_fp],5);
+                        t_checkpoint=Screen('Flip',window);
+                    elseif  condition(trial_success)==6 % Single N out
+                        imgRect=cell2mat(squares(SquareOrderX(trial_success),SquareOrderY(trial_success)));
+                        imgRectOut=[2*center(1)-imgRect(3) 2*center(2)-imgRect(4) 2*center(1)-imgRect(1) 2*center(2)-imgRect(2)];
+
+                        theImage1 = imread(strcat(theImageLocation,'Natural\',files(Results.img(trial_total)).name));
+
+                        theImage2 = imread(strcat(theImageLocation,'Texture\',files(Results.img(trial_total)).name));
+
+
+                        imageTexture1 = Screen('MakeTexture', window, theImage1);
+                        imageTexture2 = Screen('MakeTexture', window, theImage2);
+
+
+                        Screen('DrawTexture', window, imageTexture1, [], imgRectOut, 0);
+
+
+                        Screen('FillOval',window,fp_color, [center(1)-fpr+x_fp, center(2)-fpr-y_fp, center(1)+fpr+x_fp, center(2)+fpr-y_fp],5);
+                        t_checkpoint=Screen('Flip',window);
+                    elseif condition(trial_success)==7 %popout T out
+                        imgRect=cell2mat(squares(SquareOrderX(trial_success),SquareOrderY(trial_success)));
+                        imgRectOut=[2*center(1)-imgRect(3) 2*center(2)-imgRect(4) 2*center(1)-imgRect(1) 2*center(2)-imgRect(2)];
+
+                        theImage1 = imread(strcat(theImageLocation,'Natural\',files(Results.img(trial_total)).name));
+
+                        theImage2 = imread(strcat(theImageLocation,'Texture\',files(Results.img(trial_total)).name));
+
+
+                        imageTexture1 = Screen('MakeTexture', window, theImage1);
+                        imageTexture2 = Screen('MakeTexture', window, theImage2);
+                        for i=1:6
+                            for j=1:4
+                                tempRect=cell2mat(squares(i,j));
+                                Screen('DrawTexture', window, imageTexture1, [], tempRect, 0);
+                            end
                         end
+
+                        Screen('DrawTexture', window, imageTexture2, [], imgRectOut, 0);
+
+
+                        Screen('FillOval',window,fp_color, [center(1)-fpr+x_fp, center(2)-fpr-y_fp, center(1)+fpr+x_fp, center(2)+fpr-y_fp],5);
+                        t_checkpoint=Screen('Flip',window);
+                    elseif condition(trial_success)==8 %popout N out
+                        imgRect=cell2mat(squares(SquareOrderX(trial_success),SquareOrderY(trial_success)));
+                        imgRectOut=[2*center(1)-imgRect(3) 2*center(2)-imgRect(4) 2*center(1)-imgRect(1) 2*center(2)-imgRect(2)];
+
+                        theImage1 = imread(strcat(theImageLocation,'Natural\',files(Results.img(trial_total)).name));
+
+                        theImage2 = imread(strcat(theImageLocation,'Texture\',files(Results.img(trial_total)).name));
+
+
+                        imageTexture1 = Screen('MakeTexture', window, theImage1);
+                        imageTexture2 = Screen('MakeTexture', window, theImage2);
+                        for i=1:6
+                            for j=1:4
+                                tempRect=cell2mat(squares(i,j));
+                                Screen('DrawTexture', window, imageTexture2, [], tempRect, 0);
+                            end
+                        end
+
+                        Screen('DrawTexture', window, imageTexture1, [], imgRectOut, 0);
+
+
+                        Screen('FillOval',window,fp_color, [center(1)-fpr+x_fp, center(2)-fpr-y_fp, center(1)+fpr+x_fp, center(2)+fpr-y_fp],5);
+                        t_checkpoint=Screen('Flip',window);
+                    elseif condition(trial_success)==9 %homo T
+                        imgRect=cell2mat(squares(SquareOrderX(trial_success),SquareOrderY(trial_success)));
+                        theImage1 = imread(strcat(theImageLocation,'Natural\',files(Results.img(trial_total)).name));
+
+                        theImage2 = imread(strcat(theImageLocation,'Texture\',files(Results.img(trial_total)).name));
+
+
+                        imageTexture1 = Screen('MakeTexture', window, theImage1);
+                        imageTexture2 = Screen('MakeTexture', window, theImage2);
+                        for i=1:6
+                            for j=1:4
+                                tempRect=cell2mat(squares(i,j));
+                                Screen('DrawTexture', window, imageTexture2, [], tempRect, 0);
+                            end
+                        end
+
+
+
+                        Screen('FillOval',window,fp_color, [center(1)-fpr+x_fp, center(2)-fpr-y_fp, center(1)+fpr+x_fp, center(2)+fpr-y_fp],5);
+                        t_checkpoint=Screen('Flip',window);
+                    elseif condition(trial_success)==10 %homo N
+                        imgRect=cell2mat(squares(SquareOrderX(trial_success),SquareOrderY(trial_success)));
+                        theImage1 = imread(strcat(theImageLocation,'Natural\',files(Results.img(trial_total)).name));
+
+                        theImage2 = imread(strcat(theImageLocation,'Texture\',files(Results.img(trial_total)).name));
+
+
+                        imageTexture1 = Screen('MakeTexture', window, theImage1);
+                        imageTexture2 = Screen('MakeTexture', window, theImage2);
+                        for i=1:6
+                            for j=1:4
+                                tempRect=cell2mat(squares(i,j));
+                                Screen('DrawTexture', window, imageTexture1, [], tempRect, 0);
+                            end
+                        end
+
+
+
+                        Screen('FillOval',window,fp_color, [center(1)-fpr+x_fp, center(2)-fpr-y_fp, center(1)+fpr+x_fp, center(2)+fpr-y_fp],5);
+                        t_checkpoint=Screen('Flip',window);
                     end
-
-                    Screen('FillRect', window, el.backgroundcolour,imgRect);
-
-
-                    Screen('FillOval',window,fp_color, [center(1)-fpr+x_fp, center(2)-fpr-y_fp, center(1)+fpr+x_fp, center(2)+fpr-y_fp],5);
-                    t_checkpoint=Screen('Flip',window);
-                elseif  cfg.onebyone & mod(trial_success)==0
-                     imgRect=cell2mat(squares(SquareOrderX(trial_success),SquareOrderY(trial_success)));
-                    theImage1 = imread(strcat(theImageLocation,'Natural\',files(Results.img(trial_total)).name));
-
-                    theImage2 = imread(strcat(theImageLocation,'Texture\',files(Results.img(trial_total)).name));
-
-
-                    imageTexture1 = Screen('MakeTexture', window, theImage1);
-                    imageTexture2 = Screen('MakeTexture', window, theImage2);
-                    
-
-                            Screen('DrawTexture', window, imageTexture2, [], imgRect, 0);
-
-
-                    Screen('FillOval',window,fp_color, [center(1)-fpr+x_fp, center(2)-fpr-y_fp, center(1)+fpr+x_fp, center(2)+fpr-y_fp],5);
-                    t_checkpoint=Screen('Flip',window);
                 end
-              end
 
                 Results.PutOnImg1(trial_total)=t_checkpoint;
                 Results.Xpos(trial_total)=SquareOrderX(trial_success);
                 Results.Ypos(trial_total)=SquareOrderY(trial_success);
+                Eyelink('Message','Put On Img %d',trial_total);
 
                 % check key press
                 checkkeys;
@@ -568,9 +704,9 @@ try
                     stage='inter_trial_interval';
                 elseif GetSecs-t_checkpoint>=cfg.t_hold_fixation_fp
                     % Eyelink matlab message, Hold comp fp
-                    Results.HoldCompFP(trial_total)=GetSecs;
-                    %                     Eyelink('Message','HoldCompFPWOSP %d',trial_total);
-                    %                     fprintf('Hold Comp FP without SP %d',trial_total)
+                    Results.HoldFPIMG(trial_total)=GetSecs;
+                    Eyelink('Message','HoldFixImg %d',trial_total);
+
                     stage='HoldImgOff';
                 end
                 % check if key is pressed
@@ -580,6 +716,9 @@ try
                 Screen('FillRect',window, el.backgroundcolour);
                 Screen('FillOval',window,fp_color, [center(1)-fpr+x_fp, center(2)-fpr-y_fp, center(1)+fpr+x_fp, center(2)+fpr-y_fp],5);
                 t_checkpoint=Screen('Flip',window);
+                Reuslts.putOffImg(trial_total)=t_checkpoint;
+                Eyelink('Message','Put off img %d',trial_total);
+
                 stage='KeepHoldImgOff';
 
             case 'KeepHoldImgOff'
@@ -599,9 +738,9 @@ try
                     stage='inter_trial_interval';
                 elseif GetSecs-t_checkpoint>=cfg.t_hold_fixation_fp
                     % Eyelink matlab message, Hold comp fp
-                    Results.HoldCompFP(trial_total)=GetSecs;
-                    %                     Eyelink('Message','HoldCompFPWOSP %d',trial_total);
-                    %                     fprintf('Hold Comp FP without SP %d',trial_total)
+                    Results.HoldFPImgOff(trial_total)=GetSecs;
+                    Eyelink('Message','HoldFPImgOff %d',trial_total);
+
                     stage='reward';
                 end
                 % check if key is pressed
@@ -614,7 +753,7 @@ try
                         % Eyelink matlab message, reward and reward amount
                         Eyelink( 'Message', 'Reward %d,trial %d', cfg.reward*1.5,trial_total);
                         fprintf('reward amount %d,trial %d \n',cfg.reward*1.5,trial_total)
-                        Results.RewardAmount(trial_total)=cfg.reward*2;
+                        Results.RewardAmount(trial_total)=cfg.reward*1.5;
                         Results.RewardTime(trial_total)=GetSecs;
 
 

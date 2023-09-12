@@ -2,7 +2,7 @@ clear
 close all
 warning('off')
 cfg.sub='Vennie';
-cfg.windowSize=1.4;
+cfg.windowSize=2;
 cfg.probConditions=[0.2 0.4 0.8 1];
 cfg.blockSize=50;
 cfg.ScreenNumber=1;

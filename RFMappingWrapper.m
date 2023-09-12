@@ -4,13 +4,14 @@ warning('off')
 %sub name
 cfg.sub='Vennie';
 % fixation point accept window size
-cfg.windowSize=1.5;
+cfg.windowSize=2;
 cfg.ScreenNumber=1;
 % Time allowed sub to start fix on fp
 cfg.t_waitfixation_fp=2;
 cfg.t_waitfixation_sp=2;
 % Time required sub to fix on fp
 cfg.t_fixation_fp=0.5;
+cfg.totalLoop=100;
 cfg.t_keepfixation=0.6;
 cfg.t_fixation_fp_sp=0.2;
 cfg.t_fixation_sp=0.75;
@@ -25,8 +26,8 @@ cfg.fp_y=0;
 cfg.fpr=0.2;
 cfg.imgR=3;
 cfg.imgPos=5;
-cfg.reward=150;
-cfg.t_trialend=1;
+cfg.reward=100;
+cfg.t_trialend=0.1;
 
 cfg.polar=true;
 cfg.degree=deg2rad([0,45,90,135,180,225,270,315,360]);
@@ -45,11 +46,12 @@ cfg.t_fixation_sp=0.5;
 cfg.randreward=true;
 cfg.randper=0.2;
 % Size of presented square size
-cfg.squareSize=2.5;
+cfg.squareSize=3;
 %Number of square horizontally and vertically
- cfg.squareWidthDeg = 6;
-    cfg.squareHeightDeg = 4;
-cfg.t_hold_fixation_fp=0.5;
+ cfg.squareWidthDeg = 5;
+    cfg.squareHeightDeg = 5;
+cfg.t_hold_fixation_fp=0.1;
+cfg.t_hold_fixation_fp_off=0.5;
 cfg.popout=true;
 cfg.Natural=true;
 cfg.setLocation=true;

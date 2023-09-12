@@ -210,7 +210,7 @@ try
     el.backgroundcolour = [200 200 200];% RGB blackgrey
     el.calibrationtargetcolour = [0 0 1];% RGB black
     % set "Camera Setup" instructions text colour so it is different from background colour
-    el.msgfontcolour = [0 0 1];% RGB black
+    el.msgfontcolour = [100 100 100];% RGB black
     % You must call this function to apply the changes made to the el structure above
     EyelinkUpdateDefaults(el);
 
@@ -242,7 +242,7 @@ try
     %     slack=Screen('GetFlipInterval',window)/2;
     RandStream.setGlobalStream(RandStream('mt19937ar','seed',sum(100*clock)));
     % background on
-    Screen('FillRect',window, el.backgroundcolour);
+    Screen('FillRect',window, el.msgfontcolour);
     % start of the trial
     t_checkpoint=Screen('Flip',window);
 
@@ -268,7 +268,7 @@ try
     squareHeightDeg = cfg.squareWidthDeg;
     for i=1:squareWidthDeg
         for j=1:squareHeightDeg
-            squares{i,j}=[(2*i-1)*width/squareWidthDeg/2-cfg.squareSize*ppd (2*j-1)*height/squareHeightDeg/2-cfg.squareSize*ppd (2*i-1)*width/squareWidthDeg/2+cfg.squareSize*ppd (2*j-1)*height/squareHeightDeg/2+cfg.squareSize*ppd];
+            squares{i,j}=[center(1)+(-10+(i-1)*5)*ppd-cfg.squareSize*ppd center(2)+(-10+(j-1)*5)*ppd-cfg.squareSize*ppd center(1)+(-10+(i-1)*5)*ppd+cfg.squareSize*ppd center(2)+(-10+(j-1)*5)*ppd+cfg.squareSize*ppd];
         end
     end
     SquareOrderX=[];
@@ -289,41 +289,47 @@ try
                 WaitSecs(0.1);
                 Eyelink('StartRecording');
                 disp('trial_start');
-
-                if mod(trial_success-1,24)==0
-                    % Define the ranges for i and j
-                    iRange = 1:6;
-                    jRange = 1:4;
-
+  iRange = 1:5;
+                    jRange = 1:5;
+originalArray=[1:25];
                     % Create a cell array to store the combinations
                     combinations = cell(numel(iRange)*numel(jRange), 2);
+                if mod(trial_success-1,25)==0
+                    % Define the ranges for i and j
+                  
 
-                    % Iterate over each combination of i and j and store it in the cell array
-                    k = 1;
-                    for i = iRange
-                        for j = jRange
-                            combinations{k, 1} = i;
-                            combinations{k, 2} = j;
-                            k = k + 1;
-                        end
-                    end
+                 numIterations = 25;
+drawnNumbers=[];
+for i = 1:numIterations
+    % Shuffle the original array randomly
+    shuffledArray = originalArray(randperm(length(originalArray)));
+    
+    % Select the first 3 elements from the shuffled array
+    selectedNumbers = shuffledArray(1:3);
+    
+    % Add the selected numbers to the drawnNumbers array
+    drawnNumbers = [drawnNumbers, selectedNumbers];
+    
+    % Display the selected numbers for this iteration
+    
+end
 
                     % Randomize the order of the combinations
-                    randomOrder = randperm(size(combinations, 1));
-                    randomCombinations = combinations(randomOrder, :);
+                 gridArray = reshape(1:25, 5, 5);
+for i=1:size(drawnNumbers,2)
+                        [SquareOrderXtemp(i),SquareOrderYtemp(i)]= find(gridArray==drawnNumbers(i));
+end
 
-                    % Display the randomized combinations
-                    for k = 1:size(randomCombinations, 1)
-                        i = randomCombinations{k, 1};
-                        j = randomCombinations{k, 2};
-                        SquareOrderX=[SquareOrderX i];
-                        SquareOrderY=[SquareOrderY j];
+                   SquareOrderX=[SquareOrderX SquareOrderXtemp];
+                                      SquareOrderY=[SquareOrderY SquareOrderYtemp];
 
-
-                    end
                 end
-
-                stage='put_on_fp';
+                cclabPulse('A');
+                if trial_success/24==cfg.totalLoop
+                    stage='exp_end';
+                else
+                    stage='put_on_fp';
+                end
             case 'put_on_fp'
                 % check if fixation window is adjusted
                 if change
@@ -343,10 +349,10 @@ try
 
 
                 end
-               
+
 
                 % draw fixation point, update time
-                Screen('FillRect',window, el.backgroundcolour);
+                Screen('FillRect',window, el.msgfontcolour);
                 Screen('FillOval',window,fp_color, [center(1)-fpr+x_fp, center(2)-fpr-y_fp, center(1)+fpr+x_fp, center(2)+fpr-y_fp],5);
                 t_checkpoint=Screen('Flip',window);
 
@@ -355,8 +361,8 @@ try
                 % accepted eye position
                 Eyelink('command','clear_screen %d', 0);
                 Eyelink('command','draw_box %d %d %d %d 15', box1, box2, box3,box4);
-Results.putonFix(trial_total)=t_checkpoint;
- Eyelink('Message','put on Fix %d',trial_total);
+                Results.putonFix(trial_total)=t_checkpoint;
+                Eyelink('Message','put on Fix %d',trial_total);
                 % check if key is pressed
                 checkkeys;
 
@@ -381,7 +387,9 @@ Results.putonFix(trial_total)=t_checkpoint;
                 % fixation point position
                 if ((x_eye >=box1)&&(x_eye <= box3)&&(y_eye >= (box2))&&(y_eye <=box4))
                     t_checkpoint=GetSecs;
-                    Results.FixOnFP(trial_total)=GetSecs;
+                    Results.FixInFP(trial_total)=GetSecs;
+                    Eyelink('Message','Fix In FP %d',trial_total);
+
                     % Eyelink Matlab Message, fix in fp
                     disp('wait hold fp')
                     stage='wait_for_hold_fp';
@@ -392,7 +400,7 @@ Results.putonFix(trial_total)=t_checkpoint;
                 % make the dots flash if wanted
                 if Flash
                     % draw background, update time
-                    Screen('FillRect',window, el.backgroundcolour);
+                    Screen('FillRect',window, el.msgfontcolour);
                     Screen('Flip',window);
                     WaitSecs(t_blink_before);
                     % draw fixation point, update time
@@ -425,9 +433,9 @@ Results.putonFix(trial_total)=t_checkpoint;
                     stage='inter_trial_interval';
                 elseif GetSecs-t_checkpoint>=cfg.t_fixation_fp
                     % Eyelink matlab message, Hold comp fp
-                    Results.HoldCompFP(trial_total)=GetSecs;
-                    %                     Eyelink('Message','HoldCompFPWOSP %d',trial_total);
-                    %                     fprintf('Hold Comp FP without SP %d',trial_total)
+                    Results.HoldFPComp(trial_total)=GetSecs;
+                    Eyelink('Message','Hold FP Comp  %d',trial_total);
+
                     stage='put_on_image';
                 end
                 % check if key is pressed
@@ -441,18 +449,21 @@ Results.putonFix(trial_total)=t_checkpoint;
 
                 % draw fixation point, update time
 
-                Screen('FillRect',window, el.backgroundcolour);
+                Screen('FillRect',window, el.msgfontcolour);
 
-                Screen('FillRect', window, [255 255 255], cell2mat(squares(SquareOrderX(trial_success),SquareOrderY(trial_success))));
+                Screen('FillRect', window, [255 255 255], cell2mat(squares(SquareOrderX(3*trial_success-2),SquareOrderY(3*trial_success-2))));
+%                  Screen('FillRect', window, [255 255 255], cell2mat(squares(SquareOrderX(3*trial_success-1),SquareOrderY(3*trial_success-1))));
+%                  Screen('FillRect', window, [255 255 255], cell2mat(squares(SquareOrderX(3*trial_success),SquareOrderY(3*trial_success))));
 
                 Screen('FillOval',window,fp_color, [center(1)-fpr+x_fp, center(2)-fpr-y_fp, center(1)+fpr+x_fp, center(2)+fpr-y_fp],5);
                 t_checkpoint=Screen('Flip',window);
+cclabPulse('B');
 
 
-
-                Results.PutOnImg1(trial_total)=t_checkpoint;
+                Results.PutOnSq(trial_total)=t_checkpoint;
                 Results.Xpos(trial_total)=SquareOrderX(trial_success);
                 Results.Ypos(trial_total)=SquareOrderY(trial_success);
+                Eyelink('Message','put on Square %d',trial_total);
 
                 % check key press
                 checkkeys;
@@ -476,16 +487,15 @@ Results.putonFix(trial_total)=t_checkpoint;
                     stage='inter_trial_interval';
                 elseif GetSecs-t_checkpoint>=cfg.t_hold_fixation_fp
                     % Eyelink matlab message, Hold comp fp
-                    Results.HoldCompFP(trial_total)=GetSecs;
-                    %                     Eyelink('Message','HoldCompFPWOSP %d',trial_total);
-                    %                     fprintf('Hold Comp FP without SP %d',trial_total)
+                    Results.HoldFixSq(trial_total)=GetSecs;
+                    Eyelink('Message','Hold Fix Sq %d',trial_total);
+
                     stage='HoldImgOff';
                 end
                 % check if key is pressed
                 checkkeys;
-
-            case 'HoldImgOff'
-                Screen('FillRect',window, el.backgroundcolour);
+  case 'HoldImgOff'
+                Screen('FillRect',window, el.msgfontcolour);
                 Screen('FillOval',window,fp_color, [center(1)-fpr+x_fp, center(2)-fpr-y_fp, center(1)+fpr+x_fp, center(2)+fpr-y_fp],5);
                 t_checkpoint=Screen('Flip',window);
                 stage='KeepHoldImgOff';
@@ -505,11 +515,180 @@ Results.putonFix(trial_total)=t_checkpoint;
                     t_checkpoint=GetSecs;
 
                     stage='inter_trial_interval';
+                elseif GetSecs-t_checkpoint>=cfg.t_hold_fixation_fp_off
+                    % Eyelink matlab message, Hold comp fp
+                    Results.HoldFPSqOff(trial_total)=GetSecs;
+                    Eyelink('Message','Hold FP Sq Off %d',trial_total);
+
+                    stage='put_on_image_2';
+                end
+                % check if key is pressed
+                checkkeys;
+
+
+                case 'put_on_image_2'
+                disp('put on image')
+                trial_attemp=trial_attemp+1;
+                Results.TrialAttemp(trial_total)=1;
+
+
+
+                % draw fixation point, update time
+
+                Screen('FillRect',window, el.msgfontcolour);
+
+                 Screen('FillRect', window, [255 255 255], cell2mat(squares(SquareOrderX(3*trial_success-1),SquareOrderY(3*trial_success-1))));
+
+                Screen('FillOval',window,fp_color, [center(1)-fpr+x_fp, center(2)-fpr-y_fp, center(1)+fpr+x_fp, center(2)+fpr-y_fp],5);
+                t_checkpoint=Screen('Flip',window);
+cclabPulse('B');
+
+
+                Results.PutOnSq2(trial_total)=t_checkpoint;
+                Results.Xpos(trial_total)=SquareOrderX(trial_success);
+                Results.Ypos(trial_total)=SquareOrderY(trial_success);
+                Eyelink('Message','put on Square %d',trial_total);
+
+                % check key press
+                checkkeys;
+                stage='HoldFP_2';
+
+            case 'HoldFP_2'
+
+                % check eye position
+                if Eyelink('NewFloatSampleAvailable') > 0
+                    evt=Eyelink('NewestFloatSample');
+
+                    x_eye=evt.gx(eye_used+1);
+                    y_eye=evt.gy(eye_used+1);
+                end
+                % if eye position is not in the box, start a new trial with
+                % new fixation point, update time, if eye is in the box and
+                % hold for the amount of the time, go to reward stage
+                if not((x_eye >= (box1))&&(x_eye <= (box3))&&(y_eye >= (box2))&&(y_eye <= (box4)))
+                    t_checkpoint=GetSecs;
+
+                    stage='inter_trial_interval';
                 elseif GetSecs-t_checkpoint>=cfg.t_hold_fixation_fp
                     % Eyelink matlab message, Hold comp fp
-                    Results.HoldCompFP(trial_total)=GetSecs;
-                    %                     Eyelink('Message','HoldCompFPWOSP %d',trial_total);
-                    %                     fprintf('Hold Comp FP without SP %d',trial_total)
+                    Results.HoldFixSq(trial_total)=GetSecs;
+                    Eyelink('Message','Hold Fix Sq %d',trial_total);
+
+                    stage='HoldImgOff_2';
+                end
+                % check if key is pressed
+                checkkeys;
+              case 'HoldImgOff_2'
+                Screen('FillRect',window, el.msgfontcolour);
+                Screen('FillOval',window,fp_color, [center(1)-fpr+x_fp, center(2)-fpr-y_fp, center(1)+fpr+x_fp, center(2)+fpr-y_fp],5);
+                t_checkpoint=Screen('Flip',window);
+                stage='KeepHoldImgOff_2';
+
+            case 'KeepHoldImgOff_2'
+                % check eye position
+                if Eyelink('NewFloatSampleAvailable') > 0
+                    evt=Eyelink('NewestFloatSample');
+
+                    x_eye=evt.gx(eye_used+1);
+                    y_eye=evt.gy(eye_used+1);
+                end
+                % if eye position is not in the box, start a new trial with
+                % new fixation point, update time, if eye is in the box and
+                % hold for the amount of the time, go to reward stage
+                if not((x_eye >= (box1))&&(x_eye <= (box3))&&(y_eye >= (box2))&&(y_eye <= (box4)))
+                    t_checkpoint=GetSecs;
+
+                    stage='inter_trial_interval';
+                elseif GetSecs-t_checkpoint>=cfg.t_hold_fixation_fp_off
+                    % Eyelink matlab message, Hold comp fp
+                    Results.HoldFPSqOff(trial_total)=GetSecs;
+                    Eyelink('Message','Hold FP Sq Off %d',trial_total);
+
+                    stage='put_on_image_3';
+                end
+                % check if key is pressed
+                checkkeys;
+
+
+            case 'put_on_image_3'
+                disp('put on image')
+                trial_attemp=trial_attemp+1;
+                Results.TrialAttemp(trial_total)=1;
+
+
+
+                % draw fixation point, update time
+
+                Screen('FillRect',window, el.msgfontcolour);
+
+                 Screen('FillRect', window, [255 255 255], cell2mat(squares(SquareOrderX(3*trial_success),SquareOrderY(3*trial_success))));
+
+                Screen('FillOval',window,fp_color, [center(1)-fpr+x_fp, center(2)-fpr-y_fp, center(1)+fpr+x_fp, center(2)+fpr-y_fp],5);
+                t_checkpoint=Screen('Flip',window);
+cclabPulse('B');
+
+
+                Results.PutOnSq3(trial_total)=t_checkpoint;
+                Results.Xpos2(trial_total)=SquareOrderX(trial_success);
+                Results.Ypos2(trial_total)=SquareOrderY(trial_success);
+                Eyelink('Message','put on Square %d',trial_total);
+
+                % check key press
+                checkkeys;
+                stage='HoldFP_3';
+
+            case 'HoldFP_3'
+
+                % check eye position
+                if Eyelink('NewFloatSampleAvailable') > 0
+                    evt=Eyelink('NewestFloatSample');
+
+                    x_eye=evt.gx(eye_used+1);
+                    y_eye=evt.gy(eye_used+1);
+                end
+                % if eye position is not in the box, start a new trial with
+                % new fixation point, update time, if eye is in the box and
+                % hold for the amount of the time, go to reward stage
+                if not((x_eye >= (box1))&&(x_eye <= (box3))&&(y_eye >= (box2))&&(y_eye <= (box4)))
+                    t_checkpoint=GetSecs;
+
+                    stage='inter_trial_interval';
+                elseif GetSecs-t_checkpoint>=cfg.t_hold_fixation_fp
+                    % Eyelink matlab message, Hold comp fp
+                    Results.HoldFixSq(trial_total)=GetSecs;
+                    Eyelink('Message','Hold Fix Sq %d',trial_total);
+
+                    stage='HoldImgOff_3';
+                end
+                % check if key is pressed
+                checkkeys;
+
+            case 'HoldImgOff_3'
+                Screen('FillRect',window, el.msgfontcolour);
+                Screen('FillOval',window,fp_color, [center(1)-fpr+x_fp, center(2)-fpr-y_fp, center(1)+fpr+x_fp, center(2)+fpr-y_fp],5);
+                t_checkpoint=Screen('Flip',window);
+                stage='KeepHoldImgOff_3';
+
+            case 'KeepHoldImgOff_3'
+                % check eye position
+                if Eyelink('NewFloatSampleAvailable') > 0
+                    evt=Eyelink('NewestFloatSample');
+
+                    x_eye=evt.gx(eye_used+1);
+                    y_eye=evt.gy(eye_used+1);
+                end
+                % if eye position is not in the box, start a new trial with
+                % new fixation point, update time, if eye is in the box and
+                % hold for the amount of the time, go to reward stage
+                if not((x_eye >= (box1))&&(x_eye <= (box3))&&(y_eye >= (box2))&&(y_eye <= (box4)))
+                    t_checkpoint=GetSecs;
+
+                    stage='inter_trial_interval';
+                elseif GetSecs-t_checkpoint>=cfg.t_hold_fixation_fp_off
+                    % Eyelink matlab message, Hold comp fp
+                    Results.HoldFPSqOff(trial_total)=GetSecs;
+                    Eyelink('Message','Hold FP Sq Off %d',trial_total);
+
                     stage='reward';
                 end
                 % check if key is pressed
@@ -522,7 +701,7 @@ Results.putonFix(trial_total)=t_checkpoint;
                         % Eyelink matlab message, reward and reward amount
                         Eyelink( 'Message', 'Reward %d,trial %d', cfg.reward*1.5,trial_total);
                         fprintf('reward amount %d,trial %d \n',cfg.reward*1.5,trial_total)
-                        Results.RewardAmount(trial_total)=cfg.reward*2;
+                        Results.RewardAmount(trial_total)=cfg.reward*1.5;
                         Results.RewardTime(trial_total)=GetSecs;
 
 
@@ -564,7 +743,7 @@ Results.putonFix(trial_total)=t_checkpoint;
 
 
                 % Fill background grey
-                Screen('FillRect',window, el.backgroundcolour);
+                Screen('FillRect',window, el.msgfontcolour);
                 % update time
                 t_checkpoint=Screen('Flip',window);
                 Results.ITI(trial_total)=t_checkpoint;
@@ -573,12 +752,12 @@ Results.putonFix(trial_total)=t_checkpoint;
                 Eyelink('Message', 'Inter-Trial-Interval %d',trial_total);
                 % update total trial count, save results
                 trial_total=trial_total+1;
-                WaitSecs(0.1); % Add 100 msec of data to catch final events before stopping
+%                 WaitSecs(0.1); % Add 100 msec of data to catch final events before stopping
                 Eyelink('StopRecording');
                 Eyelink('SetOfflineMode'); % Put tracker in idle/offline mode
 
                 Screen('Close');
-
+cclabPulse('A');
                 % wait for iti
                 WaitSecs(cfg.t_trialend);
 
@@ -586,7 +765,7 @@ Results.putonFix(trial_total)=t_checkpoint;
 
 
             case 'ForcedTrial_fp'
-                Screen('FillRect',window, el.backgroundcolour);
+                Screen('FillRect',window, el.msgfontcolour);
                 Screen('FillOval',window,fp_color, [center(1)-fpr+x_fp, center(2)-fpr-y_fp, center(1)+fpr+x_fp, center(2)+fpr-y_fp],5);
                 t_checkpoint=Screen('Flip',window);
                 % check if key is pressed

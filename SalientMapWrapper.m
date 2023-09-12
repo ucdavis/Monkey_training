@@ -2,7 +2,7 @@ clear
 close all
 warning('off')
 cfg.sub='Vennie';
-cfg.windowSize=3;
+cfg.windowSize=1.5;
 cfg.ScreenNumber=1;
 cfg.t_waitfixation_fp=2;
 cfg.t_waitfixation_sp=2;
@@ -20,7 +20,7 @@ cfg.fpr=0.5;
 cfg.spr=0.2;
 cfg.imgR=3;
 cfg.imgPos=5;
-cfg.reward=150;
+cfg.reward=100;
 cfg.t_trialend=1;
 cfg.sp_x=[0];
 cfg.sp_y=[0];
