@@ -3,7 +3,7 @@ close all
 warning('off')
 cfg.sub='Vennie';
 cfg.windowSize=1.4;
-cfg.ScreenNumber=1;
+cfg.ScreenNumber=2;
 cfg.t_waitfixation_fp=2;
 cfg.t_waitfixation_sp=2;
 cfg.t_fixation_fp=0.5;
